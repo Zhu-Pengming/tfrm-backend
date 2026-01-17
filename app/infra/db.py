@@ -1,0 +1,262 @@
+from sqlalchemy import create_engine, Column, String, Integer, DateTime, Boolean, JSON, Numeric, Date, Text, Enum as SQLEnum, ARRAY
+from sqlalchemy.ext.declarative import declarative_base
+from sqlalchemy.orm import sessionmaker, Session
+from sqlalchemy.sql import func
+from datetime import datetime
+from typing import Optional
+from app.config import get_settings
+import enum
+
+settings = get_settings()
+
+database_url = settings.database_url
+if database_url.startswith("postgresql://"):
+    database_url = database_url.replace("postgresql://", "postgresql+psycopg://", 1)
+
+engine = create_engine(database_url, pool_pre_ping=True)
+SessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+Base = declarative_base()
+
+
+def get_db():
+    db = SessionLocal()
+    try:
+        yield db
+    finally:
+        db.close()
+
+
+def scoped_query(db: Session, model, agency_id: str):
+    return db.query(model).filter(model.agency_id == agency_id)
+
+
+class OwnerType(str, enum.Enum):
+    PUBLIC = "public"
+    PRIVATE = "private"
+
+
+class SKUType(str, enum.Enum):
+    HOTEL = "hotel"
+    CAR = "car"
+    ITINERARY = "itinerary"
+    GUIDE = "guide"
+    RESTAURANT = "restaurant"
+    TICKET = "ticket"
+    ACTIVITY = "activity"
+
+
+class SKUStatus(str, enum.Enum):
+    ACTIVE = "active"
+    INACTIVE = "inactive"
+
+
+class ImportStatus(str, enum.Enum):
+    CREATED = "created"
+    UPLOADED = "uploaded"
+    PARSING = "parsing"
+    PARSED = "parsed"
+    CONFIRMED = "confirmed"
+    FAILED = "failed"
+
+
+class Agency(Base):
+    __tablename__ = "agencies"
+    
+    id = Column(String, primary_key=True)
+    name = Column(String, nullable=False)
+    type = Column(String)
+    contact_name = Column(String)
+    contact_phone = Column(String)
+    contact_wechat = Column(String)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class User(Base):
+    __tablename__ = "users"
+    
+    id = Column(String, primary_key=True)
+    agency_id = Column(String, nullable=False, index=True)
+    username = Column(String, unique=True, nullable=False)
+    hashed_password = Column(String, nullable=False)
+    full_name = Column(String)
+    role = Column(String)
+    wechat_openid = Column(String, unique=True)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class Supplier(Base):
+    __tablename__ = "suppliers"
+    
+    id = Column(String, primary_key=True)
+    agency_id = Column(String, nullable=False, index=True)
+    name = Column(String, nullable=False)
+    contact_name = Column(String)
+    contact_phone = Column(String)
+    contact_wechat = Column(String)
+    settlement_method = Column(String)
+    notes = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class SKU(Base):
+    __tablename__ = "skus"
+    
+    id = Column(String, primary_key=True)
+    agency_id = Column(String, nullable=False, index=True)
+    sku_name = Column(String, nullable=False)
+    sku_type = Column(SQLEnum(SKUType), nullable=False, index=True)
+    status = Column(SQLEnum(SKUStatus), default=SKUStatus.ACTIVE, index=True)
+    owner_type = Column(SQLEnum(OwnerType), nullable=False, index=True)
+    
+    supplier_id = Column(String, index=True)
+    supplier_name = Column(String)
+    
+    destination_country = Column(String, index=True)
+    destination_city = Column(String, index=True)
+    tags = Column(ARRAY(String), index=True)
+    
+    valid_from = Column(Date)
+    valid_to = Column(Date)
+    booking_advance = Column(Integer)
+    cancel_policy = Column(Text)
+    include_items = Column(Text)
+    exclude_items = Column(Text)
+    
+    attrs = Column(JSON, nullable=False, default={})
+    
+    media = Column(JSON, default=[])
+    
+    visibility_scope = Column(String, default="all")
+    partner_whitelist = Column(ARRAY(String))
+    
+    source_sku_id = Column(String)
+    applied_factor_id = Column(String)
+    
+    created_by = Column(String)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class PricingFactor(Base):
+    __tablename__ = "pricing_factors"
+    
+    id = Column(String, primary_key=True)
+    agency_id = Column(String, nullable=False, index=True)
+    name = Column(String, nullable=False)
+    
+    apply_to_sku_types = Column(ARRAY(String))
+    apply_to_cities = Column(ARRAY(String))
+    apply_to_tags = Column(ARRAY(String))
+    apply_to_suppliers = Column(ARRAY(String))
+    
+    multiply_factor = Column(Numeric(10, 4), default=1.0)
+    add_amount = Column(Numeric(10, 2), default=0.0)
+    
+    priority = Column(Integer, default=0)
+    
+    valid_from = Column(Date)
+    valid_to = Column(Date)
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class ImportTask(Base):
+    __tablename__ = "import_tasks"
+    
+    id = Column(String, primary_key=True)
+    agency_id = Column(String, nullable=False, index=True)
+    user_id = Column(String, nullable=False)
+    
+    status = Column(SQLEnum(ImportStatus), default=ImportStatus.CREATED, index=True)
+    
+    input_text = Column(Text)
+    input_files = Column(JSON, default=[])
+    
+    parsed_result = Column(JSON)
+    extracted_fields = Column(JSON)
+    confidence = Column(JSON)
+    evidence = Column(JSON)
+    
+    error_message = Column(Text)
+    
+    created_sku_id = Column(String)
+    
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class Quotation(Base):
+    __tablename__ = "quotations"
+    
+    id = Column(String, primary_key=True)
+    agency_id = Column(String, nullable=False, index=True)
+    user_id = Column(String, nullable=False)
+    
+    title = Column(String, nullable=False)
+    customer_name = Column(String)
+    customer_contact = Column(String)
+    
+    total_amount = Column(Numeric(10, 2))
+    discount_amount = Column(Numeric(10, 2), default=0.0)
+    final_amount = Column(Numeric(10, 2))
+    
+    notes = Column(Text)
+    
+    status = Column(String, default="draft")
+    
+    published_at = Column(DateTime)
+    published_url = Column(String)
+    
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class QuotationItem(Base):
+    __tablename__ = "quotation_items"
+    
+    id = Column(String, primary_key=True)
+    quotation_id = Column(String, nullable=False, index=True)
+    
+    sku_id = Column(String, nullable=False)
+    
+    snapshot = Column(JSON, nullable=False)
+    
+    quantity = Column(Integer, default=1)
+    unit_price = Column(Numeric(10, 2))
+    subtotal = Column(Numeric(10, 2))
+    
+    custom_title = Column(String)
+    custom_description = Column(Text)
+    custom_notes = Column(Text)
+    
+    sort_order = Column(Integer, default=0)
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class AuditLog(Base):
+    __tablename__ = "audit_logs"
+    
+    id = Column(String, primary_key=True)
+    agency_id = Column(String, nullable=False, index=True)
+    user_id = Column(String, nullable=False, index=True)
+    
+    action = Column(String, nullable=False, index=True)
+    entity_type = Column(String, nullable=False)
+    entity_id = Column(String, nullable=False, index=True)
+    
+    before_data = Column(JSON)
+    after_data = Column(JSON)
+    
+    ip_address = Column(String)
+    user_agent = Column(String)
+    
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+
+
+def init_db():
+    Base.metadata.create_all(bind=engine)
