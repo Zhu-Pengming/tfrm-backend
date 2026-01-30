@@ -1,3 +1,4 @@
+# Python
 __pycache__/
 *.py[cod]
 *$py.class
@@ -18,7 +19,10 @@ wheels/
 *.egg-info/
 .installed.cfg
 *.egg
+pip-log.txt
+pip-delete-this-directory.txt
 
+# Virtual Environment
 .env
 .venv
 env/
@@ -27,29 +31,85 @@ ENV/
 env.bak/
 venv.bak/
 
+# Environment Variables (IMPORTANT: Never commit!)
+.env
+.env.local
+.env.*.local
+.env.production
+.env.development
+
+# Logs
 *.log
+logs/
+*.log.*
+
+# Database
 local_settings.py
 db.sqlite3
 db.sqlite3-journal
+test.db
+*.db
 
+# Uploads and Static Files
 uploads/
 static/
+media/
 
+# IDE
 .DS_Store
 .idea/
 .vscode/
 *.swp
 *.swo
 *~
-
-# 测试数据库
-test.db
-*.db
+.project
+.pydevproject
+.settings/
 
 # Celery
 celerybeat-schedule
 celerybeat.pid
 
-# 临时文件
+# Temporary Files
 *.tmp
 *.bak
+.env.backup_cors
+
+# Testing
+.pytest_cache/
+.coverage
+htmlcov/
+.tox/
+.hypothesis/
+
+# Web Frontend (React/Vite)
+web/node_modules/
+web/dist/
+web/.env
+web/.env.local
+web/.env.production
+web/.env.development
+web/npm-debug.log*
+web/yarn-debug.log*
+web/yarn-error.log*
+web/pnpm-debug.log*
+web/.vite/
+
+# Mini-Program
+tfrm-miniprogram/node_modules/
+tfrm-miniprogram/miniprogram_npm/
+tfrm-miniprogram/.tea/
+
+# OS Files
+Thumbs.db
+Desktop.ini
+
+# Alembic
+alembic/versions/__pycache__/
+
+# Backup Files
+*.backup
+*.old
+
+# Test Materials (可选：如果不想上传测试素材)
+测试素材/

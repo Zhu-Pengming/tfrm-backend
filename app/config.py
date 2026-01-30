@@ -15,7 +15,7 @@ class Settings(BaseSettings):
     cors_allow_all_in_dev: bool = True
     
     llm_provider: str = "kimi"
-    kimi_api_key: str = "sk-4dzY6YoprFr8vUzU8ksfROYHSP3bQXEDZ2yKCDbDBFovPGBT"
+    kimi_api_key: str = ""
     kimi_model: str = "kimi-k2.5"
     
     storage_provider: str = "local"
