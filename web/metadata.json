@@ -1,0 +1,7 @@
+{
+  "name": "智旅云 System",
+  "description": "A comprehensive SKU management dashboard for travel agencies, featuring smart import, product library with multi-dimensional filtering, quotation generation, and vendor management.",
+  "requestFramePermissions": [
+    "camera"
+  ]
+}

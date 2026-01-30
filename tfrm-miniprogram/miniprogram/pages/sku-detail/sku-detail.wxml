@@ -1,0 +1,54 @@
+<view class="detail-container">
+  <view wx:if="{{loading}}" class="loading-state">
+    <text class="loading-text">加载中...</text>
+  </view>
+
+  <view wx:else class="detail-content">
+    <view class="header-section">
+      <text class="sku-name">{{sku.sku_name}}</text>
+      <view class="sku-type-badge type-{{sku.sku_type}}">
+        {{typeLabels[sku.sku_type]}}
+      </view>
+    </view>
+
+    <view class="info-section">
+      <view class="info-row">
+        <text class="info-label">SKU ID</text>
+        <text class="info-value">{{sku.id}}</text>
+      </view>
+      <view class="info-row">
+        <text class="info-label">目的地</text>
+        <text class="info-value">{{sku.destination_city}}, {{sku.destination_country}}</text>
+      </view>
+      <view class="info-row">
+        <text class="info-label">状态</text>
+        <view class="status-badge status-{{sku.status}}">
+          {{statusLabels[sku.status]}}
+        </view>
+      </view>
+    </view>
+
+    <view class="tags-section" wx:if="{{sku.tags && sku.tags.length > 0}}">
+      <text class="section-title">标签</text>
+      <view class="tags-list">
+        <text wx:for="{{sku.tags}}" wx:key="*this" class="tag">{{item}}</text>
+      </view>
+    </view>
+
+    <view class="attrs-section">
+      <text class="section-title">详细信息</text>
+      <view class="attrs-list">
+        <view wx:for="{{attrsList}}" wx:key="key" class="attr-item">
+          <text class="attr-label">{{item.label}}</text>
+          <text class="attr-value">{{item.value}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="action-section">
+      <button class="btn-add-basket" bindtap="handleAddToBasket">
+        加入报价
+      </button>
+    </view>
+  </view>
+</view>

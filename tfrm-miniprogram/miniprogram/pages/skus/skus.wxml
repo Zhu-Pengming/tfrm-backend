@@ -1,0 +1,126 @@
+<view class="skus-container">
+  <view class="header-section">
+    <view class="header-top">
+      <view class="header-title">产品资源库</view>
+      <view class="header-actions">
+        <view class="search-bar">
+          <input 
+            class="search-input" 
+            placeholder="搜索 SKU..."
+            value="{{keyword}}"
+            bindinput="onKeywordInput"
+            bindconfirm="handleSearch"
+          />
+          <text class="search-icon">🔍</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="library-tabs">
+      <view class="tab-item {{isPrivate ? 'active' : ''}}" bindtap="toggleLibrary">
+        <text>私有库</text>
+      </view>
+      <view class="tab-item {{!isPrivate ? 'active' : ''}}" bindtap="toggleLibrary">
+        <text>公共池</text>
+      </view>
+    </view>
+  </view>
+
+  <view class="category-filter">
+    <scroll-view scroll-x class="category-scroll">
+      <view 
+        wx:for="{{categories}}" 
+        wx:key="value" 
+        class="category-item {{selectedCategoryIndex === index ? 'active' : ''}}"
+        bindtap="onCategoryChange"
+        data-index="{{index}}"
+      >
+        <view class="category-icon">{{item.icon}}</view>
+        <text class="category-label">{{item.label}}</text>
+      </view>
+    </scroll-view>
+  </view>
+
+  <view class="basket-float" wx:if="{{basketCount > 0}}" bindtap="handleViewBasket">
+    <text class="basket-icon">🛒</text>
+    <text class="basket-count">{{basketCount}}</text>
+  </view>
+
+  <view wx:if="{{loading}}" class="loading-state">
+    <view class="loading-spinner"></view>
+    <text class="loading-text">加载中...</text>
+  </view>
+
+  <view wx:elif="{{skuList.length === 0}}" class="empty-state">
+    <view class="empty-icon">📦</view>
+    <text class="empty-title">资源库空空如也</text>
+    <text class="empty-text">没有找到匹配的产品</text>
+  </view>
+
+  <view wx:else class="sku-list {{viewMode}}">
+    <view 
+      wx:for="{{skuList}}" 
+      wx:key="id" 
+      class="sku-card"
+    >
+      <view class="card-header">
+        <view class="sku-type-badge type-{{item.sku_type}}">
+          {{typeLabels[item.sku_type] || item.sku_type}}
+        </view>
+        <view class="sku-provider">{{item.supplier_name || '供应商'}}</view>
+      </view>
+
+      <view class="card-body" bindtap="handleViewDetail" data-sku-id="{{item.id}}">
+        <text class="sku-name">{{item.sku_name}}</text>
+        
+        <view class="sku-location">
+          <text class="location-icon">📍</text>
+          <text class="location-text">{{item.destination_city || item.destination_country || '待补充'}}</text>
+        </view>
+
+        <view class="sku-pricing">
+          <view class="price-item">
+            <text class="price-label">成本</text>
+            <text class="price-value cost">¥{{item.attrs.daily_cost_price || item.attrs.cost_price || 0}}</text>
+          </view>
+          <view class="price-item">
+            <text class="price-label">销售</text>
+            <text class="price-value sales">¥{{item.attrs.daily_sell_price || item.attrs.sell_price || 0}}</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="card-footer">
+        <view class="sku-tags" wx:if="{{item.tags && item.tags.length > 0}}">
+          <text wx:for="{{item.tags}}" wx:key="*this" wx:for-item="tag" wx:for-index="tagIdx" class="tag">
+            {{tag}}
+          </text>
+        </view>
+        
+        <view class="card-actions">
+          <button 
+            class="btn-action btn-edit" 
+            catchtap="handleEditSku"
+            data-sku="{{item}}"
+          >
+            编辑
+          </button>
+          <button 
+            class="btn-action btn-delete" 
+            catchtap="handleDeleteSku"
+            data-sku-id="{{item.id}}"
+          >
+            删除
+          </button>
+          <button 
+            class="btn-add" 
+            catchtap="handleAddToBasket"
+            data-sku="{{item}}"
+          >
+            +
+          </button>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

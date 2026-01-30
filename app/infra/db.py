@@ -101,11 +101,36 @@ class Supplier(Base):
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
+class Product(Base):
+    __tablename__ = "products"
+
+    id = Column(String, primary_key=True)
+    agency_id = Column(String, nullable=False, index=True)
+
+    title = Column(String, nullable=False)
+    product_type = Column(String, nullable=True)  # hotel/itinerary/activity etc.
+    destination_country = Column(String, index=True)
+    destination_city = Column(String, index=True)
+    tags = Column(ARRAY(String), index=True)
+
+    description = Column(Text)
+    highlights = Column(ARRAY(String))
+    media = Column(JSON, default=[])
+
+    valid_from = Column(Date)
+    valid_to = Column(Date)
+
+    created_by = Column(String)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class SKU(Base):
     __tablename__ = "skus"
     
     id = Column(String, primary_key=True)
     agency_id = Column(String, nullable=False, index=True)
+    product_id = Column(String, index=True)
     sku_name = Column(String, nullable=False)
     sku_type = Column(SQLEnum(SKUType), nullable=False, index=True)
     status = Column(SQLEnum(SKUStatus), default=SKUStatus.ACTIVE, index=True)
@@ -125,7 +150,16 @@ class SKU(Base):
     include_items = Column(Text)
     exclude_items = Column(Text)
     
+    description = Column(Text)
+    highlights = Column(ARRAY(String))
+    inclusions = Column(ARRAY(String))
+    exclusions = Column(ARRAY(String))
+    cancellation_policy = Column(Text)
+    
     attrs = Column(JSON, nullable=False, default={})
+    price_mode = Column(String)                 # fixed / calendar / ruled
+    calendar_prices = Column(JSON)              # date -> price
+    price_rules = Column(JSON)                  # list of rules (weekend +delta 等)
     
     media = Column(JSON, default=[])
     
@@ -210,6 +244,7 @@ class Quotation(Base):
     
     published_at = Column(DateTime)
     published_url = Column(String)
+    share_token = Column(String, unique=True, index=True)
     
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
@@ -236,6 +271,26 @@ class QuotationItem(Base):
     sort_order = Column(Integer, default=0)
     
     created_at = Column(DateTime, default=datetime.utcnow)
+
+
+class Vendor(Base):
+    __tablename__ = "vendors"
+    
+    id = Column(String, primary_key=True)
+    agency_id = Column(String, nullable=False, index=True)
+    name = Column(String, nullable=False)
+    logo = Column(String)
+    contact = Column(String, nullable=False)
+    phone = Column(String, nullable=False)
+    email = Column(String, nullable=False)
+    category = Column(ARRAY(String), nullable=False)
+    specialties = Column(ARRAY(String), nullable=False)
+    status = Column(String, default="Active", index=True)
+    rating = Column(Numeric(3, 1), default=5.0)
+    address = Column(Text)
+    note = Column(Text)
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
 
 
 class AuditLog(Base):

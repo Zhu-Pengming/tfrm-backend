@@ -1,22 +1,42 @@
-from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File
+from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
+from fastapi.responses import StreamingResponse, FileResponse
 from sqlalchemy.orm import Session
 from typing import List, Optional, Tuple
+import logging
+import sys
+import io
+
+# Configure logging
+logging.basicConfig(
+    level=logging.INFO,
+    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
+    stream=sys.stdout
+)
+logger = logging.getLogger(__name__)
 
 from app.infra.db import get_db, init_db
 from app.domain.auth.schemas import UserCreate, UserLogin, Token, UserResponse
 from app.domain.auth.service import AuthService
-from app.domain.auth.dependencies import get_current_user
+from app.domain.auth.dependencies import get_current_user, get_current_user_optional
 from app.domain.skus.schemas import SKUCreate, SKUUpdate, SKUResponse
+from app.domain.skus.pricing_schemas import PriceCalendarUpdate, BatchPricingUpdate, BatchSKUUpdate, BatchSKUDelete, AvailabilityResponse
 from app.domain.skus.service import SKUService
 from app.domain.imports.schemas import ImportTaskCreate, ImportTaskResponse, ImportConfirm
 from app.domain.imports.service import ImportService
 from app.domain.quotations.schemas import QuotationCreate, QuotationUpdate, QuotationResponse, QuotationItemResponse
 from app.domain.quotations.service import QuotationService
 from app.domain.pricing.service import PricingService
+from app.domain.products.schemas import ProductCreate, ProductUpdate, ProductResponse
+from app.domain.products.service import ProductService
+from app.domain.vendors.schemas import VendorCreate, VendorUpdate, VendorResponse, VendorNoteUpdate
+from app.domain.vendors.service import VendorService
 from app.infra.storage import StorageClient
+from app.config import get_settings
 
 from datetime import timedelta
+
+settings = get_settings()
 
 app = FastAPI(
     title="TFRM API",
@@ -24,13 +44,28 @@ app = FastAPI(
     version="1.0.0"
 )
 
+cors_origins = settings.cors_allowed_origins or []
+if settings.app_env == "development" and settings.cors_allow_all_in_dev:
+    cors_origins = ["*"]
+elif not cors_origins:
+    logger.warning("CORS allowed origins is empty; cross-origin requests will be blocked. Set cors_allowed_origins in production.")
+
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],
+    allow_origins=cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Add request logging middleware
+@app.middleware("http")
+async def log_requests(request: Request, call_next):
+    logger.info(f"REQUEST: {request.method} {request.url.path}")
+    logger.info(f"  Headers: {dict(request.headers)}")
+    response = await call_next(request)
+    logger.info(f"RESPONSE: {response.status_code}")
+    return response
 
 storage_client = StorageClient()
 
@@ -47,6 +82,74 @@ def read_root():
         "version": "1.0.0",
         "docs": "/docs"
     }
+
+
+# ---------------------- Product APIs ----------------------
+@app.post("/products", response_model=ProductResponse)
+def create_product(
+    product_data: ProductCreate,
+    current_user: Tuple[str, str, str] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    user_id, agency_id, username = current_user
+    product = ProductService.create_product(db, agency_id, user_id, product_data)
+    return ProductService.with_skus(db, agency_id, product)
+
+
+@app.get("/products", response_model=List[ProductResponse])
+def list_products(
+    product_type: Optional[str] = None,
+    city: Optional[str] = None,
+    keyword: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 50,
+    current_user: Tuple[str, str, str] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    user_id, agency_id, username = current_user
+    products = ProductService.list_products(db, agency_id, product_type, city, keyword, skip, limit)
+    return [ProductService.with_skus(db, agency_id, p) for p in products]
+
+
+@app.get("/products/{product_id}", response_model=ProductResponse)
+def get_product(
+    product_id: str,
+    current_user: Tuple[str, str, str] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    user_id, agency_id, username = current_user
+    product = ProductService.get_product(db, agency_id, product_id)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return ProductService.with_skus(db, agency_id, product)
+
+
+@app.put("/products/{product_id}", response_model=ProductResponse)
+def update_product(
+    product_id: str,
+    product_data: ProductUpdate,
+    current_user: Tuple[str, str, str] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    user_id, agency_id, username = current_user
+    product = ProductService.update_product(db, agency_id, user_id, product_id, product_data)
+    if not product:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return ProductService.with_skus(db, agency_id, product)
+
+
+@app.post("/products/{product_id}/skus", response_model=SKUResponse)
+def create_product_sku(
+    product_id: str,
+    sku_data: SKUCreate,
+    current_user: Tuple[str, str, str] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    user_id, agency_id, username = current_user
+    sku = ProductService.attach_sku(db, agency_id, user_id, product_id, sku_data)
+    if not sku:
+        raise HTTPException(status_code=404, detail="Product not found")
+    return sku
 
 
 @app.post("/auth/register", response_model=UserResponse)
@@ -90,25 +193,74 @@ def login(
     return {"access_token": access_token, "token_type": "bearer"}
 
 
-@app.get("/auth/me", response_model=UserResponse)
+@app.get("/auth/me")
 def get_current_user_info(
     current_user: Tuple[str, str, str] = Depends(get_current_user),
     db: Session = Depends(get_db)
 ):
+    from app.infra.db import Agency
     user_id, agency_id, username = current_user
     user = AuthService.get_user_by_id(db, user_id)
-    return user
+    
+    # 获取 agency 信息
+    agency = db.query(Agency).filter(Agency.id == agency_id).first()
+    
+    return {
+        "id": user.id,
+        "username": user.username,
+        "full_name": user.full_name,
+        "agency_id": user.agency_id,
+        "agency_name": agency.name if agency else "未知机构",
+        "role": user.role,
+        "created_at": user.created_at
+    }
+
+
+@app.get("/test-auth")
+def test_auth(current_user: Tuple[str, str, str] = Depends(get_current_user)):
+    """Test endpoint to verify authentication"""
+    user_id, agency_id, username = current_user
+    return {
+        "authenticated": True,
+        "user_id": user_id,
+        "agency_id": agency_id,
+        "username": username
+    }
+
+
+@app.post("/test-form")
+async def test_form(
+    current_user: Tuple[str, str, str] = Depends(get_current_user),
+    input_text: Optional[str] = Form(None)
+):
+    """Test endpoint to verify FormData parsing"""
+    logger.info(f"TEST FORM - input_text: {repr(input_text)}")
+    return {
+        "received": True,
+        "input_text": input_text,
+        "length": len(input_text) if input_text else 0
+    }
 
 
 @app.post("/skus", response_model=SKUResponse)
 def create_sku(
     sku_data: SKUCreate,
-    current_user: Tuple[str, str, str] = Depends(get_current_user),
+    current_user: Tuple[str, str, str] = Depends(get_current_user_optional),
     db: Session = Depends(get_db)
 ):
     user_id, agency_id, username = current_user
-    sku = SKUService.create_sku(db, agency_id, user_id, sku_data)
-    return sku
+    logger.info(f"Creating SKU: {sku_data.sku_name}")
+    logger.info(f"  - Agency ID: {agency_id}")
+    logger.info(f"  - User ID: {user_id}")
+    logger.info(f"  - SKU Type: {sku_data.sku_type}")
+    
+    try:
+        sku = SKUService.create_sku(db, agency_id, user_id, sku_data)
+        logger.info(f"SKU created successfully: {sku.id}")
+        return sku
+    except Exception as e:
+        logger.error(f"Error creating SKU: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=400, detail=f"Failed to create SKU: {str(e)}")
 
 
 @app.get("/skus/{sku_id}", response_model=SKUResponse)
@@ -124,11 +276,29 @@ def get_sku(
     return sku
 
 
+@app.get("/skus/{sku_id}/availability", response_model=AvailabilityResponse)
+def get_sku_availability(
+    sku_id: str,
+    days: int = 30,
+    current_user: Tuple[str, str, str] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Return resolved daily price with priority: calendar > rule > fixed, then pricing factors."""
+    user_id, agency_id, username = current_user
+    sku = SKUService.get_sku(db, agency_id, sku_id)
+    if not sku:
+        raise HTTPException(status_code=404, detail="SKU not found")
+    
+    days = max(1, min(days, 90))
+    availability = PricingService.build_availability(db, agency_id, sku, days)
+    return availability
+
+
 @app.put("/skus/{sku_id}", response_model=SKUResponse)
 def update_sku(
     sku_id: str,
     sku_data: SKUUpdate,
-    current_user: Tuple[str, str, str] = Depends(get_current_user),
+    current_user: Tuple[str, str, str] = Depends(get_current_user_optional),
     db: Session = Depends(get_db)
 ):
     user_id, agency_id, username = current_user
@@ -141,7 +311,7 @@ def update_sku(
 @app.delete("/skus/{sku_id}")
 def delete_sku(
     sku_id: str,
-    current_user: Tuple[str, str, str] = Depends(get_current_user),
+    current_user: Tuple[str, str, str] = Depends(get_current_user_optional),
     db: Session = Depends(get_db)
 ):
     user_id, agency_id, username = current_user
@@ -161,7 +331,7 @@ def list_skus(
     keyword: Optional[str] = None,
     skip: int = 0,
     limit: int = 50,
-    current_user: Tuple[str, str, str] = Depends(get_current_user),
+    current_user: Tuple[str, str, str] = Depends(get_current_user_optional),
     db: Session = Depends(get_db)
 ):
     user_id, agency_id, username = current_user
@@ -223,6 +393,83 @@ def confirm_import_task(
     if not sku_id:
         raise HTTPException(status_code=400, detail="Cannot confirm import task")
     return {"message": "Import confirmed", "sku_id": sku_id}
+
+
+@app.post("/imports/upload")
+async def upload_import_file(
+    file: UploadFile = File(...),
+    current_user: Tuple[str, str, str] = Depends(get_current_user)
+):
+    """Upload file for import processing (images, PDFs, documents)"""
+    user_id, agency_id, username = current_user
+    
+    logger.info(f"File upload for import - User: {username}, File: {file.filename}, Type: {file.content_type}")
+    
+    # Upload file to storage
+    file_path = await storage_client.upload_file(file.file, file.filename)
+    file_url = storage_client.get_file_url(file_path)
+    
+    logger.info(f"File uploaded successfully - Path: {file_path}, URL: {file_url}")
+    
+    return {
+        "url": file_url,
+        "file_id": file_path,
+        "filename": file.filename,
+        "content_type": file.content_type
+    }
+
+
+@app.post("/imports/extract", response_model=ImportTaskResponse)
+async def extract_with_ai(
+    request: Request,
+    current_user: Tuple[str, str, str] = Depends(get_current_user_optional),
+    db: Session = Depends(get_db)
+):
+    """
+    AI-powered extraction endpoint supporting GetYourGuide 4-layer architecture
+    Accepts either text input or file upload (images, PDFs)
+    """
+    logger.info("="*80)
+    logger.info("EXTRACT ENDPOINT CALLED")
+    logger.info(f"  - User: {current_user[2]}")
+    logger.info(f"  - Agency: {current_user[1]}")
+    logger.info(f"  - Content-Type: {request.headers.get('content-type')}")
+    logger.info("="*80)
+    
+    user_id, agency_id, username = current_user
+    
+    input_text = None
+    file_data = None
+    file_mime_type = None
+    
+    # Parse FormData manually
+    try:
+        form = await request.form()
+        logger.info(f"Form keys: {list(form.keys())}")
+        
+        if 'input_text' in form:
+            input_text = form['input_text']
+            logger.info(f"  - input_text received: {len(input_text)} chars")
+            logger.info(f"  - input_text preview: {input_text[:100]}...")
+        
+        if 'file' in form:
+            file = form['file']
+            file_data = await file.read()
+            file_mime_type = file.content_type
+            logger.info(f"  - File received: {file.filename}, type: {file_mime_type}, size: {len(file_data)} bytes")
+    except Exception as e:
+        logger.error(f"Error parsing form data: {str(e)}")
+        raise HTTPException(status_code=400, detail=f"Failed to parse form data: {str(e)}")
+    
+    if not input_text and not file_data:
+        logger.error(f"Validation failed - no input_text or file provided")
+        raise HTTPException(status_code=400, detail="Either input_text or file must be provided")
+    
+    task = await ImportService.extract_with_ai(
+        db, agency_id, user_id, input_text, file_data, file_mime_type
+    )
+    
+    return task
 
 
 @app.post("/quotations", response_model=QuotationResponse)
@@ -291,6 +538,106 @@ def publish_quotation(
     return {"message": "Quotation published", "url": published_url}
 
 
+@app.get("/quotations/{quotation_id}/export/pdf")
+def export_quotation_pdf(
+    quotation_id: str,
+    current_user: Tuple[str, str, str] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Export quotation as PDF"""
+    user_id, agency_id, username = current_user
+    
+    # Get quotation
+    quotation = QuotationService.get_quotation(db, agency_id, quotation_id)
+    if not quotation:
+        raise HTTPException(status_code=404, detail="Quotation not found")
+    
+    # Get items
+    items = QuotationService.get_quotation_items(db, quotation_id)
+    
+    # Convert to dict for PDF generator
+    from app.domain.quotations.pdf_generator import QuotationPDFGenerator
+    
+    quotation_dict = {
+        'id': quotation.id,
+        'title': quotation.title,
+        'customer_name': quotation.customer_name,
+        'customer_contact': quotation.customer_contact,
+        'total_amount': quotation.total_amount,
+        'discount_amount': quotation.discount_amount,
+        'final_amount': quotation.final_amount,
+        'notes': quotation.notes
+    }
+    
+    items_list = [
+        {
+            'snapshot': item.snapshot,
+            'quantity': item.quantity,
+            'unit_price': item.unit_price,
+            'subtotal': item.subtotal
+        }
+        for item in items
+    ]
+    
+    # Generate PDF
+    generator = QuotationPDFGenerator()
+    pdf_buffer = generator.generate(quotation_dict, items_list)
+    
+    # Return as streaming response
+    return StreamingResponse(
+        pdf_buffer,
+        media_type="application/pdf",
+        headers={
+            "Content-Disposition": f"attachment; filename=quotation_{quotation_id}.pdf"
+        }
+    )
+
+
+@app.get("/share/quotations/{share_token}")
+def get_shared_quotation(
+    share_token: str,
+    db: Session = Depends(get_db)
+):
+    """Public quotation share page - no authentication required but uses opaque token"""
+    from app.infra.db import Quotation
+    
+    quotation = db.query(Quotation).filter(
+        Quotation.share_token == share_token,
+        Quotation.status == "published"
+    ).first()
+    
+    if not quotation:
+        raise HTTPException(status_code=404, detail="Quotation not found or not published")
+    
+    items = QuotationService.get_quotation_items(db, quotation.id)
+    
+    return {
+        "quotation": {
+            "id": quotation.id,
+            "title": quotation.title,
+            "customer_name": quotation.customer_name,
+            "total_amount": float(quotation.total_amount) if quotation.total_amount else 0,
+            "discount_amount": float(quotation.discount_amount) if quotation.discount_amount else 0,
+            "final_amount": float(quotation.final_amount) if quotation.final_amount else 0,
+            "notes": quotation.notes,
+            "published_at": quotation.published_at.isoformat() if quotation.published_at else None,
+            "share_token": quotation.share_token
+        },
+        "items": [
+            {
+                "id": item.id,
+                "snapshot": item.snapshot,
+                "quantity": item.quantity,
+                "unit_price": float(item.unit_price) if item.unit_price else 0,
+                "subtotal": float(item.subtotal) if item.subtotal else 0,
+                "custom_title": item.custom_title,
+                "custom_description": item.custom_description
+            }
+            for item in items
+        ]
+    }
+
+
 @app.get("/quotations", response_model=List[QuotationResponse])
 def list_quotations(
     status: Optional[str] = None,
@@ -318,6 +665,89 @@ def pull_public_sku(
     return sku
 
 
+@app.post("/skus/{sku_id}/publish", response_model=SKUResponse)
+def publish_sku(
+    sku_id: str,
+    visibility_scope: str = "all",
+    partner_whitelist: Optional[List[str]] = None,
+    current_user: Tuple[str, str, str] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Publish a private SKU to the public resource repository"""
+    user_id, agency_id, username = current_user
+    sku = SKUService.publish_sku(db, agency_id, user_id, sku_id, visibility_scope, partner_whitelist)
+    if not sku:
+        raise HTTPException(status_code=404, detail="SKU not found")
+    return sku
+
+
+@app.put("/skus/{sku_id}/price-calendar", response_model=SKUResponse)
+def update_price_calendar(
+    sku_id: str,
+    calendar_data: PriceCalendarUpdate,
+    current_user: Tuple[str, str, str] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update price calendar for a SKU"""
+    user_id, agency_id, username = current_user
+    
+    calendar_items = [item.model_dump() for item in calendar_data.items]
+    sku = SKUService.update_price_calendar(db, agency_id, user_id, sku_id, calendar_items)
+    
+    if not sku:
+        raise HTTPException(status_code=404, detail="SKU not found")
+    return sku
+
+
+@app.post("/skus/batch-pricing")
+def batch_update_pricing(
+    pricing_data: BatchPricingUpdate,
+    current_user: Tuple[str, str, str] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Batch update SKU pricing with margin/factor/amount"""
+    user_id, agency_id, username = current_user
+    
+    updated_count = SKUService.batch_update_pricing(
+        db, agency_id, user_id,
+        pricing_data.sku_ids,
+        pricing_data.margin_percentage,
+        pricing_data.multiply_factor,
+        float(pricing_data.add_amount) if pricing_data.add_amount else None
+    )
+    
+    return {"message": f"Updated {updated_count} SKUs", "count": updated_count}
+
+
+@app.post("/skus/batch-update")
+def batch_update_skus(
+    update_data: BatchSKUUpdate,
+    current_user: Tuple[str, str, str] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Batch update SKU fields"""
+    user_id, agency_id, username = current_user
+    
+    updates = update_data.model_dump(exclude={'sku_ids'}, exclude_none=True)
+    updated_count = SKUService.batch_update_skus(db, agency_id, user_id, update_data.sku_ids, updates)
+    
+    return {"message": f"Updated {updated_count} SKUs", "count": updated_count}
+
+
+@app.post("/skus/batch-delete")
+def batch_delete_skus(
+    delete_data: BatchSKUDelete,
+    current_user: Tuple[str, str, str] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Batch delete SKUs"""
+    user_id, agency_id, username = current_user
+    
+    deleted_count = SKUService.batch_delete_skus(db, agency_id, user_id, delete_data.sku_ids)
+    
+    return {"message": f"Deleted {deleted_count} SKUs", "count": deleted_count}
+
+
 @app.post("/upload")
 async def upload_file(
     file: UploadFile = File(...),
@@ -328,6 +758,124 @@ async def upload_file(
     return {"file_path": file_path, "file_url": file_url}
 
 
+@app.get("/files/{folder}/{filename}")
+def download_file(
+    folder: str,
+    filename: str,
+    current_user: Tuple[str, str, str] = Depends(get_current_user)
+):
+    """Authenticated download endpoint to prevent public guessing."""
+    try:
+        path = storage_client.resolve_local_path(f"/{folder}/{filename}")
+    except ValueError:
+        raise HTTPException(status_code=404, detail="File not found")
+
+    if not path.exists():
+        raise HTTPException(status_code=404, detail="File not found")
+
+    return FileResponse(path)
+
+
+@app.post("/vendors", response_model=VendorResponse)
+def create_vendor(
+    vendor_data: VendorCreate,
+    current_user: Tuple[str, str, str] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    user_id, agency_id, username = current_user
+    vendor = VendorService.create_vendor(db, agency_id, user_id, vendor_data)
+    return vendor
+
+
+@app.get("/vendors/{vendor_id}", response_model=VendorResponse)
+def get_vendor(
+    vendor_id: str,
+    current_user: Tuple[str, str, str] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    user_id, agency_id, username = current_user
+    vendor = VendorService.get_vendor(db, agency_id, vendor_id)
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    return vendor
+
+
+@app.get("/vendors", response_model=List[VendorResponse])
+def list_vendors(
+    category: Optional[str] = None,
+    status: Optional[str] = None,
+    keyword: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 50,
+    current_user: Tuple[str, str, str] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    user_id, agency_id, username = current_user
+    vendors = VendorService.list_vendors(
+        db, agency_id, category, status, keyword, skip, limit
+    )
+    return vendors
+
+
+@app.put("/vendors/{vendor_id}", response_model=VendorResponse)
+def update_vendor(
+    vendor_id: str,
+    vendor_data: VendorUpdate,
+    current_user: Tuple[str, str, str] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    user_id, agency_id, username = current_user
+    vendor = VendorService.update_vendor(db, agency_id, user_id, vendor_id, vendor_data)
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    return vendor
+
+
+@app.put("/vendors/{vendor_id}/notes", response_model=VendorResponse)
+def update_vendor_note(
+    vendor_id: str,
+    note_data: VendorNoteUpdate,
+    current_user: Tuple[str, str, str] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    user_id, agency_id, username = current_user
+    vendor = VendorService.update_vendor_note(db, agency_id, vendor_id, note_data.note)
+    if not vendor:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    return vendor
+
+
+@app.delete("/vendors/{vendor_id}")
+def delete_vendor(
+    vendor_id: str,
+    current_user: Tuple[str, str, str] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    user_id, agency_id, username = current_user
+    success = VendorService.delete_vendor(db, agency_id, user_id, vendor_id)
+    if not success:
+        raise HTTPException(status_code=404, detail="Vendor not found")
+    return {"message": "Vendor deleted successfully"}
+
+
+@app.post("/vendors/{vendor_id}/generate-logo")
+async def generate_vendor_logo(
+    vendor_id: str,
+    current_user: Tuple[str, str, str] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Generate logo for vendor using AI"""
+    user_id, agency_id, username = current_user
+    
+    logo_url = await VendorService.generate_vendor_logo(db, agency_id, vendor_id)
+    
+    if not logo_url:
+        raise HTTPException(status_code=500, detail="Failed to generate logo")
+    
+    return {"logo_url": logo_url, "message": "Logo generated successfully"}
+
+
 if __name__ == "__main__":
     import uvicorn
     uvicorn.run(app, host="0.0.0.0", port=8000)
+

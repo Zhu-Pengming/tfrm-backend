@@ -1,0 +1,124 @@
+<view class="edit-container">
+  <view wx:if="{{loading}}" class="loading-state">
+    <text class="loading-text">加载中...</text>
+  </view>
+
+  <view wx:else class="edit-content">
+    <view class="form-section">
+      <view class="form-group">
+        <text class="form-label">报价单标题</text>
+        <input 
+          class="form-input" 
+          placeholder="请输入报价单标题"
+          value="{{formData.title}}"
+          bindinput="onTitleInput"
+          disabled="{{mode === 'view'}}"
+        />
+      </view>
+
+      <view class="form-group">
+        <text class="form-label">客户姓名</text>
+        <input 
+          class="form-input" 
+          placeholder="请输入客户姓名"
+          value="{{formData.customer_name}}"
+          bindinput="onCustomerNameInput"
+          disabled="{{mode === 'view'}}"
+        />
+      </view>
+
+      <view class="form-group">
+        <text class="form-label">客户联系方式</text>
+        <input 
+          class="form-input" 
+          placeholder="请输入客户联系方式"
+          value="{{formData.customer_contact}}"
+          bindinput="onCustomerContactInput"
+          disabled="{{mode === 'view'}}"
+        />
+      </view>
+    </view>
+
+    <view class="items-section">
+      <view class="section-title">报价项目</view>
+      
+      <view wx:if="{{items.length === 0}}" class="empty-items">
+        <text class="empty-text">暂无项目</text>
+      </view>
+      
+      <view wx:else class="items-list">
+        <view wx:for="{{items}}" wx:key="sku_id" class="item-card">
+          <view class="item-header">
+            <text class="item-name">{{item.sku_name}}</text>
+            <text 
+              wx:if="{{mode !== 'view'}}"
+              class="item-remove" 
+              bindtap="handleRemoveItem"
+              data-index="{{index}}"
+            >
+              ✕
+            </text>
+          </view>
+          
+          <view class="item-details">
+            <view class="detail-row">
+              <text class="detail-label">数量</text>
+              <view wx:if="{{mode === 'view'}}" class="detail-value">
+                {{item.quantity}}
+              </view>
+              <view wx:else class="quantity-control">
+                <text class="qty-btn" bindtap="handleDecreaseQty" data-index="{{index}}">-</text>
+                <text class="qty-value">{{item.quantity}}</text>
+                <text class="qty-btn" bindtap="handleIncreaseQty" data-index="{{index}}">+</text>
+              </view>
+            </view>
+            
+            <view class="detail-row" wx:if="{{item.unit_price}}">
+              <text class="detail-label">单价</text>
+              <text class="detail-value">¥{{item.unit_price}}</text>
+            </view>
+            
+            <view class="detail-row" wx:if="{{item.subtotal}}">
+              <text class="detail-label">小计</text>
+              <text class="detail-value total">¥{{item.subtotal}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <view class="summary-section">
+      <view class="summary-row">
+        <text class="summary-label">总计</text>
+        <text class="summary-value">¥{{totalAmount}}</text>
+      </view>
+    </view>
+
+    <view class="action-section">
+      <button 
+        wx:if="{{mode === 'create' || mode === 'edit'}}"
+        class="btn-save" 
+        bindtap="handleSave"
+        disabled="{{saving}}"
+      >
+        {{saving ? '保存中...' : '保存草稿'}}
+      </button>
+      
+      <button 
+        wx:if="{{mode === 'view' && quotation.status === 'draft'}}"
+        class="btn-edit" 
+        bindtap="handleSwitchToEdit"
+      >
+        编辑
+      </button>
+      
+      <button 
+        wx:if="{{mode === 'view' && quotation.status === 'draft'}}"
+        class="btn-publish" 
+        bindtap="handlePublish"
+      >
+        发布
+      </button>
+    </view>
+  </view>
+</view>

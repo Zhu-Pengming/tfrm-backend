@@ -1,0 +1,80 @@
+<view class="import-container">
+  <view class="header-section">
+    <view class="header-title">智能导入</view>
+    <view class="header-subtitle">GetYourGuide 架构提取</view>
+  </view>
+
+  <view class="mode-switch">
+    <view class="mode-item {{mode === 'text' ? 'active' : ''}}" bindtap="switchMode" data-mode="text">
+      <text>文本解析</text>
+    </view>
+    <view class="mode-item {{mode === 'file' ? 'active' : ''}}" bindtap="switchMode" data-mode="file">
+      <text>文档识别</text>
+    </view>
+  </view>
+
+  <view class="input-section">
+    <view wx:if="{{mode === 'text'}}" class="text-input-area">
+    
+      <textarea 
+        class="input-textarea" 
+        placeholder="粘贴酒店、门票、导游等资源信息，AI将自动解析&#10;&#10;例如：&#10;清迈假日酒店&#10;房型：家庭房&#10;价格：499元/晚&#10;成本：350元/晚"
+        value="{{inputText}}"
+        bindinput="onInputChange"
+        maxlength="5000"
+      />
+      <view class="char-count">{{inputText.length}}/5000</view>
+    </view>
+
+    <view wx:else class="file-input-area">
+      <view wx:if="{{selectedFiles.length === 0}}" class="upload-placeholder" bindtap="handleChooseFile">
+        <view class="upload-icon">📄</view>
+        <text class="upload-text">点击上传图片或文档</text>
+        <text class="upload-hint">支持 JPG、PNG、PDF 格式</text>
+      </view>
+      
+      <view wx:else class="file-preview">
+        <view wx:for="{{selectedFiles}}" wx:key="index" class="file-item">
+          <text class="file-name">{{item.name}}</text>
+          <text class="file-remove" bindtap="handleRemoveFile" data-index="{{index}}">×</text>
+        </view>
+      </view>
+    </view>
+    
+    <button class="btn-parse" bindtap="handleStartParse" disabled="{{loading}}">
+      {{loading ? '分层提取中...' : '开始结构化建模'}}
+    </button>
+  </view>
+
+  <view class="history-section">
+    <view class="history-header">
+      <text class="section-title">导入历史</text>
+      <view class="refresh-btn" bindtap="handleRefresh">
+        <text>🔄</text>
+      </view>
+    </view>
+    
+    <view wx:if="{{taskList.length === 0}}" class="empty-state">
+      <view class="empty-icon">📋</view>
+      <text class="empty-text">暂无导入记录</text>
+    </view>
+    
+    <view wx:else class="task-list">
+      <view 
+        wx:for="{{taskList}}" 
+        wx:key="id" 
+        class="task-item"
+        bindtap="handleViewTask"
+        data-task-id="{{item.id}}"
+      >
+        <view class="task-header">
+          <text class="task-id">任务 #{{item.id.slice(0, 8)}}</text>
+          <view class="task-status status-{{item.status}}">
+            {{statusText[item.status]}}
+          </view>
+        </view>
+        <view class="task-time">{{item.created_at}}</view>
+      </view>
+    </view>
+  </view>
+</view>

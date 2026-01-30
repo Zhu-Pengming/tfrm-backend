@@ -36,6 +36,16 @@ class StorageClient:
         return f"/{folder}/{new_filename}"
     
     def get_file_url(self, file_path: str) -> str:
-        if self.provider == "local":
-            return f"/static{file_path}"
-        return file_path
+        # Expose through auth-protected download endpoint
+        return f"/files{file_path}"
+
+    def resolve_local_path(self, file_path: str) -> Path:
+        """Ensure the file path stays inside the configured storage root."""
+        if not file_path:
+            raise ValueError("Empty file path")
+        relative = file_path.lstrip("/")
+        full_path = (self.storage_path / relative).resolve()
+        storage_root = self.storage_path.resolve()
+        if storage_root not in full_path.parents and full_path != storage_root:
+            raise ValueError("Invalid file path")
+        return full_path

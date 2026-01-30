@@ -1,0 +1,186 @@
+<view class="detail-container">
+
+  <view wx:if="{{loading}}" class="loading-state">
+
+    <text class="loading-text">加载中...</text>
+
+  </view>
+
+
+
+  <view wx:elif="{{task.status === 'parsing'}}" class="parsing-state">
+
+    <view class="parsing-icon">🤖</view>
+
+    <text class="parsing-title">AI正在解析中...</text>
+
+    <text class="parsing-desc">请稍候，通常需要10-30秒</text>
+
+    <view class="progress-dots">
+
+      <view class="dot"></view>
+
+      <view class="dot"></view>
+
+      <view class="dot"></view>
+
+    </view>
+
+  </view>
+
+
+
+  <view wx:elif="{{task.status === 'failed'}}" class="error-state">
+
+    <text class="error-icon">❌</text>
+
+    <text class="error-title">解析失败</text>
+
+    <text class="error-message">{{task.error_message}}</text>
+
+    <button class="btn-back" bindtap="handleBack">返回</button>
+
+  </view>
+
+
+
+  <view wx:elif="{{task.status === 'parsed'}}" class="parsed-content">
+
+    <view class="status-banner">
+
+      <text class="banner-icon">✅</text>
+
+      <view class="banner-text">
+
+        <text class="banner-title">AI解析完成</text>
+
+        <text class="banner-desc">置信度：{{confidencePercent}}%</text>
+
+      </view>
+
+    </view>
+
+
+
+    <view class="sku-type-section">
+
+      <view class="section-title">资源类型</view>
+
+      <picker mode="selector" range="{{skuTypes}}" range-key="label" value="{{selectedTypeIndex}}" bindchange="onSkuTypeChange">
+
+        <view class="picker-field">
+
+          <text>{{skuTypes[selectedTypeIndex].label}}</text>
+
+          <text class="picker-arrow">▼</text>
+
+        </view>
+
+      </picker>
+
+    </view>
+
+
+
+    <view class="fields-section">
+
+      <view class="section-title">提取的字段</view>
+
+      <view class="field-list">
+
+        <view wx:for="{{fieldList}}" wx:key="key" class="field-item">
+
+          <view class="field-header">
+
+            <text class="field-label">{{item.label}}</text>
+
+            <text wx:if="{{item.hasEvidence}}" class="evidence-btn" bindtap="handleShowEvidence" data-field="{{item.key}}">
+
+              查看依据
+
+            </text>
+
+          </view>
+
+          <input 
+
+            class="field-input {{item.lowConfidence ? 'low-confidence' : ''}}" 
+
+            value="{{item.value}}" 
+
+            bindinput="onFieldChange"
+
+            data-field="{{item.key}}"
+
+            placeholder="请输入{{item.label}}"
+
+          />
+
+          <text wx:if="{{item.lowConfidence}}" class="confidence-warning">⚠️ 置信度较低，请检查</text>
+
+        </view>
+
+      </view>
+
+    </view>
+
+
+
+    <view class="action-section">
+
+      <button class="btn-confirm" bindtap="handleConfirm" disabled="{{confirming}}">
+
+        {{confirming ? '确认中...' : '确认入库'}}
+
+      </button>
+
+    </view>
+
+  </view>
+
+
+
+  <view wx:elif="{{task.status === 'confirmed'}}" class="confirmed-state">
+
+    <text class="success-icon">🎉</text>
+
+    <text class="success-title">已入库成功</text>
+
+    <text class="success-desc">SKU ID: {{skuId}}</text>
+
+    <view class="action-buttons">
+
+      <button class="btn-view-sku" bindtap="handleViewSku">查看资源</button>
+
+      <button class="btn-back-list" bindtap="handleBackToList">返回列表</button>
+
+    </view>
+
+  </view>
+
+</view>
+
+
+
+<view wx:if="{{showEvidenceModal}}" class="modal-overlay" bindtap="handleCloseEvidence">
+
+  <view class="modal-content" catchtap="stopPropagation">
+
+    <view class="modal-header">
+
+      <text class="modal-title">提取依据</text>
+
+      <text class="modal-close" bindtap="handleCloseEvidence">✕</text>
+
+    </view>
+
+    <view class="modal-body">
+
+      <text class="evidence-text">{{currentEvidence}}</text>
+
+    </view>
+
+  </view>
+
+</view>
+

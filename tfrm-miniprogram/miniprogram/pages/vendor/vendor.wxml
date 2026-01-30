@@ -1,0 +1,197 @@
+<view class="vendor-container">
+  <view class="header-section">
+    <view class="header-top">
+      <view class="header-title">供应商管理</view>
+      <view class="header-actions">
+        <view class="search-bar">
+          <input 
+            class="search-input" 
+            placeholder="搜索供应商..."
+            value="{{keyword}}"
+            bindinput="onKeywordInput"
+            bindconfirm="handleSearch"
+          />
+          <text class="search-icon">🔍</text>
+        </view>
+        <button class="btn-add-vendor" bindtap="showAddVendorModal">
+          <text class="add-icon">+</text>
+        </button>
+      </view>
+    </view>
+  </view>
+
+  <view class="category-filter">
+    <scroll-view scroll-x class="category-scroll">
+      <view 
+        wx:for="{{categories}}" 
+        wx:key="value" 
+        class="category-item {{selectedCategoryIndex === index ? 'active' : ''}}"
+        bindtap="onCategoryChange"
+        data-index="{{index}}"
+      >
+        <view class="category-icon">{{item.icon}}</view>
+        <text class="category-label">{{item.label}}</text>
+      </view>
+    </scroll-view>
+  </view>
+
+  <view wx:if="{{loading}}" class="loading-state">
+    <view class="loading-spinner"></view>
+    <text class="loading-text">加载中...</text>
+  </view>
+
+  <view wx:elif="{{vendorList.length === 0}}" class="empty-state">
+    <view class="empty-icon">🏢</view>
+    <text class="empty-title">暂无供应商</text>
+    <text class="empty-text">点击右上角添加供应商</text>
+  </view>
+
+  <view wx:else class="vendor-list">
+    <view 
+      wx:for="{{vendorList}}" 
+      wx:key="id" 
+      class="vendor-card"
+      bindtap="handleViewDetail"
+      data-vendor-id="{{item.id}}"
+    >
+      <view class="card-header">
+        <view class="vendor-logo">
+          <text class="logo-text">{{item.name.substring(0, 2)}}</text>
+        </view>
+        <view class="vendor-info">
+          <text class="vendor-name">{{item.name}}</text>
+          <view class="vendor-contact">
+            <text class="contact-name">{{item.contact}}</text>
+            <text class="contact-divider">|</text>
+            <text class="contact-phone">{{item.phone}}</text>
+            <view 
+              class="copy-btn" 
+              catchtap="handleCopyPhone" 
+              data-phone="{{item.phone}}"
+            >
+              <text class="copy-icon">📋</text>
+            </view>
+          </view>
+        </view>
+        <view class="vendor-status {{item.status === 'Active' ? 'active' : 'inactive'}}">
+          {{item.status === 'Active' ? '合作中' : '暂停'}}
+        </view>
+      </view>
+
+      <view class="card-body">
+        <view class="vendor-categories">
+          <text 
+            wx:for="{{item.category}}" 
+            wx:key="*this" 
+            wx:for-item="cat" 
+            wx:for-index="catIdx"
+            class="category-badge"
+          >
+            {{cat}}
+          </text>
+        </view>
+
+        <view class="vendor-address" wx:if="{{item.address}}">
+          <text class="address-icon">📍</text>
+          <text class="address-text">{{item.address}}</text>
+        </view>
+
+        <view class="vendor-rating" wx:if="{{item.rating}}">
+          <text class="rating-icon">⭐</text>
+          <text class="rating-value">{{item.rating}}</text>
+        </view>
+      </view>
+    </view>
+  </view>
+
+  <!-- 添加供应商模态框 -->
+  <view wx:if="{{showAddModal}}" class="modal-overlay" bindtap="hideAddModal">
+    <view class="modal-content" catchtap="">
+      <view class="modal-header">
+        <text class="modal-title">添加供应商</text>
+        <view class="modal-close" bindtap="hideAddModal">✕</view>
+      </view>
+
+      <scroll-view scroll-y class="modal-body">
+        <view class="form-group">
+          <text class="form-label">供应商名称 *</text>
+          <input 
+            class="form-input" 
+            placeholder="输入供应商名称"
+            value="{{formData.name}}"
+            bindinput="onFormInput"
+            data-field="name"
+          />
+        </view>
+
+        <view class="form-group">
+          <text class="form-label">联系人 *</text>
+          <input 
+            class="form-input" 
+            placeholder="输入联系人名称"
+            value="{{formData.contact}}"
+            bindinput="onFormInput"
+            data-field="contact"
+          />
+        </view>
+
+        <view class="form-group">
+          <text class="form-label">电话 *</text>
+          <input 
+            class="form-input" 
+            type="number"
+            placeholder="输入电话号码"
+            value="{{formData.phone}}"
+            bindinput="onFormInput"
+            data-field="phone"
+          />
+        </view>
+
+        <view class="form-group">
+          <text class="form-label">邮箱 *</text>
+          <input 
+            class="form-input" 
+            type="text"
+            placeholder="输入邮箱地址"
+            value="{{formData.email}}"
+            bindinput="onFormInput"
+            data-field="email"
+          />
+        </view>
+
+        <view class="form-group">
+          <text class="form-label">服务类别 *</text>
+          <view class="category-grid">
+            <view 
+              wx:for="{{categories}}" 
+              wx:key="value"
+              wx:if="{{item.value}}"
+              class="category-option {{formData.category.indexOf(item.value) > -1 ? 'selected' : ''}}"
+              bindtap="toggleCategory"
+              data-category="{{item.value}}"
+            >
+              <text class="option-icon">{{item.icon}}</text>
+              <text class="option-label">{{item.label}}</text>
+            </view>
+          </view>
+        </view>
+
+        <view class="form-group">
+          <text class="form-label">地址</text>
+          <input 
+            class="form-input" 
+            placeholder="输入供应商地址（可选）"
+            value="{{formData.address}}"
+            bindinput="onFormInput"
+            data-field="address"
+          />
+        </view>
+      </scroll-view>
+
+      <view class="modal-footer">
+        <button class="btn-cancel" bindtap="hideAddModal">取消</button>
+        <button class="btn-submit" bindtap="handleSubmitVendor">提交</button>
+      </view>
+    </view>
+  </view>
+</view>

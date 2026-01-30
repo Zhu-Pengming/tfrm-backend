@@ -5,6 +5,19 @@ from decimal import Decimal
 from enum import Enum
 
 
+class PriceMode(str, Enum):
+    FIXED = "fixed"
+    CALENDAR = "calendar"
+    RULED = "ruled"
+
+
+class PriceRule(BaseModel):
+    """规则加价：如周末 +300、节假日 +500。"""
+    rule: str  # e.g., "weekend", "holiday", "peak_season"
+    delta_amount: Decimal = Decimal("0.0")
+    currency: Optional[str] = "CNY"
+
+
 class SKUTypeEnum(str, Enum):
     HOTEL = "hotel"
     CAR = "car"
@@ -13,6 +26,29 @@ class SKUTypeEnum(str, Enum):
     RESTAURANT = "restaurant"
     TICKET = "ticket"
     ACTIVITY = "activity"
+
+
+# 前端到后端的分类映射
+FRONTEND_TO_BACKEND_CATEGORY = {
+    "Hotel": "hotel",
+    "Transport": "car",
+    "Ticket": "ticket",
+    "Guide": "guide",
+    "Catering": "restaurant",
+    "Activity": "activity",
+    "Route": "itinerary"
+}
+
+# 后端到前端的分类映射
+BACKEND_TO_FRONTEND_CATEGORY = {
+    "hotel": "Hotel",
+    "car": "Transport",
+    "ticket": "Ticket",
+    "guide": "Guide",
+    "restaurant": "Catering",
+    "activity": "Activity",
+    "itinerary": "Route"
+}
 
 
 class HotelAttrs(BaseModel):
@@ -60,6 +96,14 @@ class ItineraryAttrs(BaseModel):
     departure_dates: Optional[List[date]] = None
     min_pax: Optional[int] = None
     max_pax: Optional[int] = None
+    route_stops: Optional[List[str]] = None
+    service_guarantees: Optional[List[str]] = None
+    experience_themes: Optional[List[str]] = None
+    duration_days: Optional[int] = None
+    duration_nights: Optional[int] = None
+    price_mode: Optional[PriceMode] = PriceMode.FIXED
+    calendar_prices: Optional[Dict[str, Decimal]] = None  # date -> price
+    price_rules: Optional[List[PriceRule]] = None
     adult_price: Optional[Decimal] = None
     child_price: Optional[Decimal] = None
     single_supplement: Optional[Decimal] = None
@@ -109,12 +153,20 @@ class ActivityAttrs(BaseModel):
     activity_name: str
     category: Optional[str] = None
     duration_hours: Optional[Decimal] = None
+    duration_days: Optional[int] = None
+    duration_nights: Optional[int] = None
     language_service: Optional[List[str]] = None
     difficulty_level: Optional[str] = None
     meeting_point: Optional[str] = None
+    route_stops: Optional[List[str]] = None
     start_time_slots: Optional[List[str]] = None
     min_pax: Optional[int] = None
     max_pax: Optional[int] = None
+    experience_themes: Optional[List[str]] = None  # 文化/族群体验：纳西/马帮/盐帮
+    service_guarantees: Optional[List[str]] = None  # 2-7人小团/自有车队/24h管家
+    price_mode: Optional[PriceMode] = PriceMode.FIXED
+    calendar_prices: Optional[Dict[str, Decimal]] = None
+    price_rules: Optional[List[PriceRule]] = None
     cost_price: Optional[Decimal] = None
     sell_price: Optional[Decimal] = None
 
@@ -155,6 +207,7 @@ class SKUCreate(BaseModel):
     sku_name: str
     sku_type: SKUTypeEnum
     owner_type: str
+    product_id: Optional[str] = None
     supplier_id: Optional[str] = None
     supplier_name: Optional[str] = None
     destination_country: Optional[str] = None
@@ -166,6 +219,14 @@ class SKUCreate(BaseModel):
     cancel_policy: Optional[str] = None
     include_items: Optional[str] = None
     exclude_items: Optional[str] = None
+    description: Optional[str] = None
+    highlights: Optional[List[str]] = None
+    inclusions: Optional[List[str]] = None
+    exclusions: Optional[List[str]] = None
+    cancellation_policy: Optional[str] = None
+    price_mode: Optional[PriceMode] = None
+    calendar_prices: Optional[Dict[str, Decimal]] = None
+    price_rules: Optional[List[PriceRule]] = None
     attrs: Dict[str, Any]
     media: Optional[List[Dict[str, str]]] = None
     
@@ -179,6 +240,7 @@ class SKUCreate(BaseModel):
 class SKUUpdate(BaseModel):
     sku_name: Optional[str] = None
     status: Optional[str] = None
+    product_id: Optional[str] = None
     supplier_id: Optional[str] = None
     supplier_name: Optional[str] = None
     destination_country: Optional[str] = None
@@ -190,6 +252,14 @@ class SKUUpdate(BaseModel):
     cancel_policy: Optional[str] = None
     include_items: Optional[str] = None
     exclude_items: Optional[str] = None
+    description: Optional[str] = None
+    highlights: Optional[List[str]] = None
+    inclusions: Optional[List[str]] = None
+    exclusions: Optional[List[str]] = None
+    cancellation_policy: Optional[str] = None
+    price_mode: Optional[PriceMode] = None
+    calendar_prices: Optional[Dict[str, Decimal]] = None
+    price_rules: Optional[List[PriceRule]] = None
     attrs: Optional[Dict[str, Any]] = None
     media: Optional[List[Dict[str, str]]] = None
 
@@ -197,6 +267,7 @@ class SKUUpdate(BaseModel):
 class SKUResponse(BaseModel):
     id: str
     agency_id: str
+    product_id: Optional[str]
     sku_name: str
     sku_type: str
     status: str
@@ -208,6 +279,14 @@ class SKUResponse(BaseModel):
     tags: Optional[List[str]]
     valid_from: Optional[date]
     valid_to: Optional[date]
+    description: Optional[str]
+    highlights: Optional[List[str]]
+    inclusions: Optional[List[str]]
+    exclusions: Optional[List[str]]
+    cancellation_policy: Optional[str]
+    price_mode: Optional[str]
+    calendar_prices: Optional[Dict[str, float]]
+    price_rules: Optional[List[Dict[str, Any]]]
     attrs: Dict[str, Any]
     media: Optional[List[Dict[str, str]]]
     created_at: datetime

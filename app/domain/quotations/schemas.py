@@ -54,6 +54,7 @@ class QuotationResponse(BaseModel):
     status: str
     published_at: Optional[datetime]
     published_url: Optional[str]
+    share_token: Optional[str]
     created_at: datetime
     updated_at: datetime
     

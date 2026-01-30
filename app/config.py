@@ -8,17 +8,22 @@ class Settings(BaseSettings):
     secret_key: str
     algorithm: str = "HS256"
     access_token_expire_minutes: int = 30
+
+    # Environment / security
+    app_env: str = "development"  # development / production
+    cors_allowed_origins: list[str] = []
+    cors_allow_all_in_dev: bool = True
     
-    llm_provider: str = "gemini"
-    gemini_api_key: str = ""
-    deepseek_api_key: str = ""
-    openai_api_key: str = ""
+    llm_provider: str = "kimi"
+    kimi_api_key: str = "sk-4dzY6YoprFr8vUzU8ksfROYHSP3bQXEDZ2yKCDbDBFovPGBT"
+    kimi_model: str = "kimi-k2.5"
     
     storage_provider: str = "local"
     storage_path: str = "./uploads"
     
     class Config:
         env_file = ".env"
+        extra = "ignore"
 
 
 @lru_cache()

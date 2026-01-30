@@ -1,0 +1,47 @@
+{
+  "pages": [
+    "pages/login/login",
+    "pages/import/import",
+    "pages/import-detail/import-detail",
+    "pages/skus/skus",
+    "pages/sku-detail/sku-detail",
+    "pages/quotation/quotation",
+    "pages/quotation-edit/quotation-edit",
+    "pages/publish-success/publish-success",
+    "pages/vendor/vendor",
+    "pages/vendor-detail/vendor-detail"
+  ],
+  "tabBar": {
+    "color": "#666666",
+    "selectedColor": "#1890ff",
+    "backgroundColor": "#ffffff",
+    "borderStyle": "black",
+    "list": [
+      {
+        "pagePath": "pages/import/import",
+        "text": "导入"
+      },
+      {
+        "pagePath": "pages/skus/skus",
+        "text": "资源库"
+      },
+      {
+        "pagePath": "pages/quotation/quotation",
+        "text": "报价"
+      },
+      {
+        "pagePath": "pages/vendor/vendor",
+        "text": "供应商"
+      }
+    ]
+  },
+  "window": {
+    "navigationBarTextStyle": "black",
+    "navigationBarTitleText": "TFRM资源管理",
+    "navigationBarBackgroundColor": "#ffffff",
+    "backgroundColor": "#f5f5f5"
+  },
+  "style": "v2",
+  "sitemapLocation": "sitemap.json",
+  "lazyCodeLoading": "requiredComponents"
+}

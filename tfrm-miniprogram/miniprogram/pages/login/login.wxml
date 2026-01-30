@@ -1,0 +1,63 @@
+<view class="login-container">
+  <view class="logo-section">
+    <view class="logo-icon">🌏</view>
+    <text class="logo-title">智旅云</text>
+    <text class="logo-subtitle">旅行社碎片化资源智能管理系统</text>
+  </view>
+
+  <view class="form-section">
+    <view class="tab-switch">
+      <view class="tab-item {{isLogin ? 'active' : ''}}" bindtap="switchMode">
+        <text>登录</text>
+      </view>
+      <view class="tab-item {{!isLogin ? 'active' : ''}}" bindtap="switchMode">
+        <text>注册</text>
+      </view>
+    </view>
+
+    <view class="form-content">
+      <view class="input-group">
+        <text class="input-label">用户名</text>
+        <view class="input-wrapper">
+          <input class="input-field" placeholder="请输入用户名" value="{{username}}" bindinput="onUsernameInput" />
+        </view>
+      </view>
+
+      <view class="input-group">
+        <text class="input-label">密码</text>
+        <view class="input-wrapper">
+          <input class="input-field" type="{{showPassword ? 'text' : 'password'}}" placeholder="请输入密码" value="{{password}}" bindinput="onPasswordInput" />
+          <view class="password-toggle" bindtap="togglePasswordVisibility">
+            <text class="toggle-icon">{{showPassword ? '👁️' : '👁️‍🗨️'}}</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="input-group" wx:if="{{!isLogin}}">
+        <text class="input-label">姓名</text>
+        <view class="input-wrapper">
+          <input class="input-field" placeholder="请输入真实姓名" value="{{fullName}}" bindinput="onFullNameInput" />
+        </view>
+      </view>
+
+      <view class="input-group" wx:if="{{!isLogin}}">
+        <text class="input-label">旅行社名称</text>
+        <view class="input-wrapper">
+          <input class="input-field" placeholder="请输入旅行社名称" value="{{agencyName}}" bindinput="onAgencyNameInput" />
+        </view>
+      </view>
+
+      <view class="error-message" wx:if="{{error}}">
+        <text>{{error}}</text>
+      </view>
+
+      <button class="btn-primary" bindtap="handleSubmit" disabled="{{loading}}">
+        {{loading ? '处理中...' : (isLogin ? '登录' : '注册')}}
+      </button>
+
+      <view class="footer-text">
+        <text>登录即表示同意《用户协议》和《隐私政策》</text>
+      </view>
+    </view>
+  </view>
+</view>

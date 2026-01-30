@@ -2,10 +2,11 @@ from sqlalchemy.orm import Session
 from app.infra.db import PricingFactor, SKU, scoped_query
 from app.domain.skus.service import SKUService
 from app.domain.skus.schemas import SKUCreate
+from app.domain.skus.pricing_schemas import AvailabilityItem, AvailabilityResponse
 from app.infra.audit import audit_log
-from typing import Optional, List
+from typing import Optional, List, Tuple
 from decimal import Decimal
-from datetime import date
+from datetime import date, timedelta
 import uuid
 
 
@@ -49,6 +50,92 @@ class PricingService:
             return factor
         
         return None
+
+    @staticmethod
+    def _base_prices(sku: SKU) -> Tuple[Optional[Decimal], Optional[Decimal]]:
+        attrs = sku.attrs or {}
+        cost_fields = ['daily_cost_price', 'cost_price', 'per_person_price', 'adult_price']
+        sell_fields = ['daily_sell_price', 'sell_price', 'per_person_price', 'adult_price']
+
+        def first_decimal(keys):
+            for key in keys:
+                if key in attrs and attrs[key] is not None:
+                    try:
+                        return Decimal(str(attrs[key]))
+                    except Exception:
+                        continue
+            return None
+
+        cost = first_decimal(cost_fields)
+        sell = first_decimal(sell_fields)
+        return cost, sell
+
+    @staticmethod
+    def resolve_price_for_date(
+        sku: SKU,
+        target_date: date,
+        factor: Optional[PricingFactor] = None
+    ) -> dict:
+        cost, sell = PricingService._base_prices(sku)
+        base_price = sell or cost or Decimal("0")
+        price_source = "fixed"
+        rule_applied = None
+
+        # Calendar pricing has highest priority
+        calendar = sku.calendar_prices or (sku.attrs or {}).get("price_calendar") or {}
+        calendar_price = None
+        if target_date and isinstance(calendar, dict):
+            key = target_date.isoformat()
+            entry = calendar.get(key)
+            if entry is None and target_date.strftime("%Y-%m-%d") != key:
+                entry = calendar.get(target_date.strftime("%Y-%m-%d"))
+            if entry is not None:
+                if isinstance(entry, dict):
+                    calendar_price = entry.get("sales_price") or entry.get("price") or entry.get("amount")
+                else:
+                    calendar_price = entry
+
+        if calendar_price is not None:
+            base_price = Decimal(str(calendar_price))
+            price_source = "calendar"
+        elif sku.price_mode == "ruled" and sku.price_rules:
+            for rule in sku.price_rules:
+                rule_name = rule.get("rule")
+                delta_amount = Decimal(str(rule.get("delta_amount", 0)))
+                if rule_name == "weekend" and target_date.weekday() >= 5:
+                    base_price = (sell or cost or Decimal("0")) + delta_amount
+                    rule_applied = rule
+                    price_source = "rule"
+                    break
+
+        factor_applied = None
+        if factor:
+            base_price = PricingService.apply_factor_to_price(base_price, factor.multiply_factor, factor.add_amount)
+            factor_applied = factor.id
+
+        return {
+            "base_price": float(sell or cost or Decimal("0")),
+            "final_price": float(base_price),
+            "price_source": price_source,
+            "rule_applied": rule_applied,
+            "factor_applied": factor_applied
+        }
+
+    @staticmethod
+    def build_availability(
+        db: Session,
+        agency_id: str,
+        sku: SKU,
+        days: int = 30
+    ) -> AvailabilityResponse:
+        factor = PricingService.find_matching_factor(db, agency_id, sku)
+        items: List[AvailabilityItem] = []
+        currency = (sku.attrs or {}).get("currency") or "CNY"
+        for i in range(days):
+            d = date.today() + timedelta(days=i)
+            result = PricingService.resolve_price_for_date(sku, d, factor)
+            items.append(AvailabilityItem(date=d, **result))
+        return AvailabilityResponse(sku_id=sku.id, currency=currency, items=items)
     
     @staticmethod
     def pull_public_sku(

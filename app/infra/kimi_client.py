@@ -1,0 +1,440 @@
+from typing import Dict, Any, Optional, List
+import httpx
+import json
+import base64
+from app.config import get_settings
+
+settings = get_settings()
+
+
+class KimiClient:
+    """
+    Kimi K2.5 client with native multimodal support (vision + text)
+    Compatible with OpenAI API format
+    Supports file upload, extraction, and structured parsing
+    """
+    
+    def __init__(self):
+        self.api_key = settings.kimi_api_key
+        self.model = settings.kimi_model
+        self.base_url = "https://api.moonshot.cn/v1"
+    
+    async def upload_file(self, file_data: bytes, filename: str) -> str:
+        """
+        Upload file to Kimi and return file_id
+        
+        Args:
+            file_data: File bytes
+            filename: Original filename
+            
+        Returns:
+            file_id from Kimi API
+        """
+        print(f"\n{'='*80}")
+        print(f"KIMI FILE UPLOAD:")
+        print(f"  - Filename: {filename}")
+        print(f"  - Size: {len(file_data)} bytes")
+        print(f"{'='*80}\n")
+        
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            files = {
+                'file': (filename, file_data)
+            }
+            response = await client.post(
+                f"{self.base_url}/files",
+                headers={
+                    "Authorization": f"Bearer {self.api_key}"
+                },
+                files=files
+            )
+            
+            if response.status_code not in (200, 201):
+                error_detail = response.text
+                print(f"\n{'='*80}")
+                print(f"KIMI FILE UPLOAD ERROR:")
+                print(f"  Status: {response.status_code}")
+                print(f"  Detail: {error_detail}")
+                print(f"{'='*80}\n")
+                raise Exception(f"Kimi file upload error ({response.status_code}): {error_detail}")
+            
+            result = response.json()
+            file_id = result.get('id')
+            
+            print(f"\n{'='*80}")
+            print(f"KIMI FILE UPLOAD SUCCESS:")
+            print(f"  - File ID: {file_id}")
+            print(f"  - Filename: {result.get('filename')}")
+            print(f"{'='*80}\n")
+            
+            return file_id
+    
+    async def get_file(self, file_id: str) -> Dict[str, Any]:
+        """
+        Retrieve file metadata to confirm upload success
+        
+        Args:
+            file_id: File ID from upload_file
+            
+        Returns:
+            File metadata dict
+        """
+        print(f"\n{'='*80}")
+        print(f"KIMI FILE RETRIEVE:")
+        print(f"  - File ID: {file_id}")
+        print(f"{'='*80}\n")
+        
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            response = await client.get(
+                f"{self.base_url}/files/{file_id}",
+                headers={
+                    "Authorization": f"Bearer {self.api_key}"
+                }
+            )
+            
+            if response.status_code != 200:
+                error_detail = response.text
+                print(f"\n{'='*80}")
+                print(f"KIMI FILE RETRIEVE ERROR:")
+                print(f"  Status: {response.status_code}")
+                print(f"  Detail: {error_detail}")
+                print(f"{'='*80}\n")
+                raise Exception(f"Kimi file retrieve error ({response.status_code}): {error_detail}")
+            
+            result = response.json()
+            
+            print(f"\n{'='*80}")
+            print(f"KIMI FILE RETRIEVE SUCCESS:")
+            print(f"  - File ID: {result.get('id')}")
+            print(f"  - Filename: {result.get('filename')}")
+            print(f"  - Status: {result.get('status')}")
+            print(f"{'='*80}\n")
+            
+            return result
+    
+    async def get_file_content(self, file_id: str) -> str:
+        """
+        Extract file content using Kimi's file content API
+        This is the correct way to get text from uploaded files
+        
+        Args:
+            file_id: File ID from upload_file
+            
+        Returns:
+            Extracted text content from the file
+        """
+        print(f"\n{'='*80}")
+        print(f"KIMI FILE CONTENT EXTRACTION:")
+        print(f"  - File ID: {file_id}")
+        print(f"{'='*80}\n")
+        
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            response = await client.get(
+                f"{self.base_url}/files/{file_id}/content",
+                headers={
+                    "Authorization": f"Bearer {self.api_key}"
+                }
+            )
+            
+            if response.status_code != 200:
+                error_detail = response.text
+                print(f"\n{'='*80}")
+                print(f"KIMI FILE CONTENT EXTRACTION ERROR:")
+                print(f"  Status: {response.status_code}")
+                print(f"  Detail: {error_detail}")
+                print(f"{'='*80}\n")
+                raise Exception(f"Kimi file content extraction error ({response.status_code}): {error_detail}")
+            
+            content = response.text
+            
+            print(f"\n{'='*80}")
+            print(f"KIMI FILE CONTENT EXTRACTION SUCCESS:")
+            print(f"  - Content length: {len(content)} chars")
+            print(f"  - Preview: {content[:200]}...")
+            print(f"{'='*80}\n")
+            
+            return content
+    
+    async def parse_sku_input(
+        self, 
+        input_text: str, 
+        images: Optional[List[Dict[str, Any]]] = None,
+        file_ids: Optional[List[str]] = None
+    ) -> Dict[str, Any]:
+        """
+        Parse SKU input using Kimi K2.5 multimodal capabilities
+        
+        Args:
+            input_text: Text content (from user input, DOCX, or OCR fallback)
+            images: List of image dicts with 'data' (bytes) and 'mime_type'
+            file_ids: List of uploaded file IDs - will extract content first
+        
+        Returns:
+            Structured extraction result with extracted_fields, confidence, evidence
+        """
+        # Extract file contents if file_ids provided
+        file_contents = []
+        if file_ids:
+            for file_id in file_ids:
+                try:
+                    content = await self.get_file_content(file_id)
+                    file_contents.append(content)
+                except Exception as e:
+                    print(f"Warning: Failed to extract content from file {file_id}: {str(e)}")
+                    continue
+        
+        # Merge file contents with input text
+        combined_text = input_text or ""
+        if file_contents:
+            combined_text += "\n\n--- 文件内容 ---\n" + "\n\n".join(file_contents)
+        
+        prompt = self._build_extraction_prompt(combined_text)
+        
+        # Build multimodal messages (now without file_ids, using extracted content)
+        messages = [
+            {"role": "system", "content": "你是 Kimi，一个专业的旅游资源数据提取助手。\n\n严格规则：\n1. 只能从图片和文本中提取实际存在的信息\n2. 绝对不得编造、推测或使用外部知识\n3. 如果图片中显示的是敦煌，就提取敦煌；如果是三亚，就提取三亚\n4. 城市名称必须与图片/文本中的完全一致\n5. 如果信息不清楚或不存在，标记为null而不是猜测\n\n违反以上规则将被视为严重错误。"},
+            {"role": "user", "content": self._build_content_parts(prompt, images, None)}
+        ]
+        
+        print(f"\n{'='*80}")
+        print(f"KIMI K2.5 REQUEST:")
+        print(f"  - Model: {self.model}")
+        print(f"  - Combined text length: {len(combined_text)}")
+        print(f"  - Images: {len(images) if images else 0}")
+        print(f"  - File contents extracted: {len(file_contents)}")
+        print(f"{'='*80}\n")
+        
+        async with httpx.AsyncClient(timeout=120.0) as client:
+            response = await client.post(
+                f"{self.base_url}/chat/completions",
+                headers={
+                    "Authorization": f"Bearer {self.api_key}",
+                    "Content-Type": "application/json"
+                },
+                json={
+                    "model": self.model,
+                    "messages": messages,
+                    "temperature": 0.6,
+                    "thinking": {"type": "disabled"},
+                    "response_format": {"type": "json_object"}
+                }
+            )
+            
+            if response.status_code != 200:
+                error_detail = response.text
+                print(f"\n{'='*80}")
+                print(f"KIMI API ERROR:")
+                print(f"  Status: {response.status_code}")
+                print(f"  Detail: {error_detail}")
+                print(f"{'='*80}\n")
+                raise Exception(f"Kimi API error ({response.status_code}): {error_detail}")
+            
+            result = response.json()
+            
+            if "choices" not in result or not result["choices"]:
+                raise Exception("No response from Kimi API")
+            
+            content = result["choices"][0]["message"]["content"]
+            parsed_result = json.loads(content)
+            
+            print(f"\n{'='*80}")
+            print(f"KIMI EXTRACTION SUCCESS:")
+            print(f"  - SKU Type: {parsed_result.get('sku_type', 'unknown')}")
+            print(f"  - Fields extracted: {len(parsed_result.get('extracted_fields', {}))}")
+            print(f"{'='*80}\n")
+            
+            return parsed_result
+    
+    def _build_content_parts(
+        self, 
+        text_prompt: str, 
+        images: Optional[List[Dict[str, Any]]] = None,
+        file_ids: Optional[List[str]] = None
+    ) -> List[Dict[str, Any]]:
+        """
+        Build multimodal content parts for Kimi K2.5
+        Supports: text + images (base64 encoded) + file references
+        """
+        parts = []
+        
+        # Note: file_ids are now handled by extracting content first in parse_sku_input
+        # So this method no longer needs to handle file_ids
+        
+        # Add images (so model sees visual context before text instructions)
+        if images:
+            for img_data in images:
+                try:
+                    if isinstance(img_data, dict):
+                        data = img_data.get('data')
+                        mime_type = img_data.get('mime_type', 'image/jpeg')
+                    else:
+                        data = img_data
+                        mime_type = 'image/jpeg'
+                    
+                    # Handle both PDF and images - send directly to Kimi API
+                    if mime_type == 'application/pdf' or mime_type.startswith('image/'):
+                        file_b64 = base64.b64encode(data).decode('utf-8')
+                        
+                        parts.append({
+                            "type": "image_url",
+                            "image_url": {
+                                "url": f"data:{mime_type};base64,{file_b64}"
+                            }
+                        })
+                        
+                        file_type = "PDF" if mime_type == 'application/pdf' else "image"
+                        print(f"  - Added {file_type} ({mime_type}, {len(data)} bytes)")
+                    
+                    else:
+                        print(f"  - Unsupported mime type: {mime_type}, skipping")
+                
+                except Exception as e:
+                    print(f"Warning: Failed to process image/file: {str(e)}")
+                    continue
+        
+        # Add text prompt
+        parts.append({
+            "type": "text",
+            "text": text_prompt
+        })
+        
+        return parts
+    
+    def _build_extraction_prompt(self, input_text: str) -> str:
+        """
+        Build extraction prompt optimized for Kimi K2.5
+        Emphasizes visual understanding for posters, pricing tables, itineraries
+        """
+        return f"""你是一个专业的旅游资源数据提取专家。请从提供的图片和文本中提取结构化信息。
+
+⚠️ **严重警告：绝对不得混淆城市或编造信息** ⚠️
+- 如果文档是关于敦煌的，destination_city 必须是"敦煌"
+- 如果文档是关于三亚的，destination_city 必须是"三亚"  
+- 不得将一个城市的文档错误识别为另一个城市
+- 必须从图片/文本中的实际文字提取城市名称
+
+**关键规则（违反将导致拒绝）：**
+1. **仅从实际内容提取** - 不得使用外部知识或编造信息
+2. **缺失信息处理** - 如果文本/图片中没有某个字段，完全省略该字段或设为 null
+3. **不得添加标准设施** - 除非明确提到，不得添加游泳池、健身房、迷你吧、欢迎水果等
+4. **不得编造退改政策** - 除非文档明确说明，否则不包含取消政策
+5. **价格表完整提取** - 提取所有行和列，不得跳过任何条目
+6. **中文文本注意** - 准确识别中文名称、城市、价格
+7. **正确识别 SKU 类型** - 根据实际内容判断：
+   - 如果有房型/房间价格表 → hotel（即使同时提供餐饮和会议服务）
+   - 如果只有餐饮价格 → restaurant
+   - 如果只有活动/体验项目 → activity
+   - 如果有车辆/用车服务 → car
+   - 如果有导游服务 → guide
+   - 如果有门票信息 → ticket
+   - 如果有多日行程 → itinerary
+8. **多房型/多季节** - 酒店有多个房型、楼栋或季节定价时，提取每一个变体
+9. **餐饮定价** - 提取所有餐型和团组规模变化
+10. **会议室** - 提取所有会议室类型及其容量和定价
+11. **必须提供证据** - 每个提取字段必须有对应证据，无法引用原文则不提取该字段
+
+**视觉理解重点（针对图片/PDF）：**
+- 识别价格表的表格结构（行列对应关系）
+- 理解版式布局（标题、副标题、注释、使用规则）
+- 提取日期范围、加价规则、特殊说明
+- 识别套餐组合、房型差异、季节划分
+
+返回 JSON 格式（严格遵守此结构）：
+
+{{
+  "sku_type": "hotel|car|itinerary|guide|restaurant|ticket|activity",
+  // ⚠️ SKU类型识别规则：
+  // - 文档包含"宾馆"、"酒店"、"饭店"或有房型价格表 → 必须是 "hotel"
+  // - 文档包含"餐厅"、"餐馆"但无房型 → "restaurant"  
+  // - 文档包含"用车"、"车辆"、"司机" → "car"
+  // - 文档包含"导游"、"讲解员" → "guide"
+  // - 文档包含"门票"、"景区" → "ticket"
+  // - 文档包含多日行程、"N天N晚" → "itinerary"
+  // - 其他体验类项目 → "activity"
+  "extracted_fields": {{
+    "sku_name": "从文档中提取的名称",
+    "destination_city": "城市名称",
+    "destination_country": "国家名称",
+    "supplier_name": "供应商名称（如有）",
+    "tags": ["标签1", "标签2"],
+    "description": "资源简要描述",
+    ...根据 sku_type 的其他相关字段
+  }},
+  "confidence": {{
+    "sku_name": 0.95,
+    "destination_city": 0.85,
+    ...每个字段的置信度分数 (0-1)
+  }},
+  "evidence": {{
+    "sku_name": "支持此提取的确切文本片段或图片描述",
+    "destination_city": "支持此提取的确切文本片段或图片描述",
+    ...每个提取字段的证据，说明在输入中的哪里找到此信息
+  }},
+  "extraction_notes": "关于文档中找到/未找到哪些信息的简要说明"
+}}
+
+**各类别特定字段（在 extracted_fields 中根据 sku_type 包含）：**
+
+**HOTEL（酒店）：**
+  - hotel_name: 酒店全称
+  - address: 完整地址
+  - star_rating: 星级（如有）
+  - contact_info: {{phone, fax, email, website, wechat}}
+  - facilities: 设施/配套数组
+  - room_types: 房型数组，结构：
+    {{
+      "building": "楼栋名称/编号（如有多栋）",
+      "room_type_name": "豪华套房/豪华标间/商务单间等",
+      "include_breakfast": true/false,
+      "pricing": [
+        {{"season": "旺季/peak", "daily_price": 1480, "currency": "CNY"}},
+        {{"season": "平季/regular", "daily_price": 1080, "currency": "CNY"}},
+        {{"season": "淡季/low", "daily_price": 880, "currency": "CNY"}}
+      ]
+    }}
+  - dining_options: 餐饮定价数组，结构：
+    {{
+      "meal_type": "早餐/午餐/晚餐",
+      "pricing": [
+        {{"group_size": "10人以上", "price_per_person": 40}},
+        {{"group_size": "6人以上", "price_per_person": 60}},
+        {{"group_size": "2-5人", "price_per_person": 80}}
+      ]
+    }}
+  - conference_rooms: 会议室数组，结构：
+    {{
+      "room_name": "会议室名称",
+      "area_sqm": 426,
+      "capacity": "容量描述",
+      "function": "大型会议/论坛等",
+      "pricing": [
+        {{"duration": "全天/full_day", "price": 10000}},
+        {{"duration": "半天/half_day", "price": 6000}}
+      ]
+    }}
+  - special_packages: 特殊套餐数组（仅在明确提及时）
+  - season_definitions: {{"peak": "7月1日-10月31日", "regular": "4月1日-6月30日", "low": "11月1日-次年3月31日"}}
+  - booking_notes: 重要预订政策或限制（仅在明确说明时）
+  
+  **酒店重要提示：**
+  - 不得添加未提及的设施（泳池、健身房、SPA等）
+  - 不得编造取消政策
+  - 不得虚构房间面积
+  - 提取价格表中的所有房型 - 不得跳过任何行
+  - 提取所有季节定价变化 - 不得跳过任何列
+
+**CAR（用车）：** car_type, seats, service_mode, service_hours, driver_language, daily_price
+
+**GUIDE（导游）：** guide_name, languages, expertise_tags, daily_cost_price, contact_phone
+
+**RESTAURANT（餐厅）：** restaurant_name, cuisine_type, meal_types (数组), per_person_price, group_pricing
+
+**TICKET（门票）：** attraction_name, ticket_type, entry_method, cost_price, sell_price, valid_dates
+
+**ACTIVITY（活动）：** activity_name, category, duration_hours, language_service, highlights, group_size, meeting_point, included_items
+
+**ITINERARY（行程）：** itinerary_name, days, nights, depart_city, min_pax, adult_price, child_price
+
+**待分析的输入内容：**
+{input_text if input_text else "(请参考上方图片内容)"}
+
+**仅返回有效 JSON，不要有任何额外文本或解释。**"""

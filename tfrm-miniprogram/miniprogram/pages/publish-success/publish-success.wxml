@@ -1,0 +1,45 @@
+<view class="success-container">
+  <view class="success-content">
+    <view class="success-icon">🎉</view>
+    <text class="success-title">发布成功！</text>
+    <text class="success-desc">报价单已生成分享链接</text>
+
+    <view class="share-section">
+      <view class="share-item">
+        <text class="share-label">分享链接</text>
+        <view class="share-url-box">
+          <text class="share-url">{{fullShareUrl}}</text>
+        </view>
+        <button class="btn-copy" bindtap="handleCopyUrl">
+          复制链接
+        </button>
+      </view>
+
+      <view class="qrcode-section">
+        <text class="share-label">二维码分享</text>
+        <view class="qrcode-placeholder">
+          <text class="qrcode-text">扫码查看报价单</text>
+          <text class="qrcode-hint">{{shareUrl}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view class="action-buttons">
+      <button class="btn-view-quotation" bindtap="handleViewQuotation">
+        查看报价单
+      </button>
+      <button class="btn-back-list" bindtap="handleBackToList">
+        返回列表
+      </button>
+    </view>
+
+    <view class="tips-section">
+      <text class="tips-title">💡 分享提示</text>
+      <view class="tips-list">
+        <text class="tip-item">• 客户可通过链接直接查看报价详情</text>
+        <text class="tip-item">• 报价单发布后内容不会因SKU变动而改变</text>
+        <text class="tip-item">• 可以将链接发送到微信、邮件等渠道</text>
+      </view>
+    </view>
+  </view>
+</view>

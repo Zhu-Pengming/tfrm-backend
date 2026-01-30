@@ -13,6 +13,15 @@ celery==5.4.0
 httpx==0.27.0
 pillow==11.0.0
 python-magic==0.4.27
+reportlab==4.0.7
+email-validator==2.1.0
+# OCR: prefer PaddleOCR (仅在 Python<3.12 安装)，否则自动回退 EasyOCR
+paddleocr==2.7.0.3 ; python_version < "3.12"
+# choose matching runtime manually (not installed automatically for 3.13):
+# - CPU: paddlepaddle==2.6.1  (requires Python<=3.11)
+# - GPU: paddlepaddle-gpu==2.6.1.postXXX  (match CUDA)
+easyocr==1.7.1
+pdf2image==1.17.0
 
 # Testing dependencies
 pytest==7.4.3

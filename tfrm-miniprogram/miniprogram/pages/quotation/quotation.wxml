@@ -1,0 +1,92 @@
+<view class="quotation-container">
+  <view class="basket-section" wx:if="{{basketItems.length > 0}}">
+    <view class="section-header">
+      <text class="section-title">报价篮 ({{basketItems.length}})</text>
+      <text class="clear-btn" bindtap="handleClearBasket">清空</text>
+    </view>
+    
+    <view class="basket-list">
+      <view wx:for="{{basketItems}}" wx:key="sku_id" class="basket-item">
+        <view class="item-info">
+          <text class="item-name">{{item.sku_name}}</text>
+          <view class="quantity-control">
+            <text class="qty-btn" bindtap="handleDecreaseQty" data-index="{{index}}">-</text>
+            <text class="qty-value">{{item.quantity}}</text>
+            <text class="qty-btn" bindtap="handleIncreaseQty" data-index="{{index}}">+</text>
+          </view>
+        </view>
+        <text class="remove-btn" bindtap="handleRemoveItem" data-index="{{index}}">✕</text>
+      </view>
+    </view>
+    
+    <button class="btn-create-quote" bindtap="handleCreateQuotation">
+      创建报价单
+    </button>
+  </view>
+
+  <view class="quotations-section">
+    <view class="section-title">报价单列表</view>
+    
+    <view wx:if="{{loading}}" class="loading-state">
+      <text class="loading-text">加载中...</text>
+    </view>
+    
+    <view wx:elif="{{quotationList.length === 0}}" class="empty-state">
+      <text class="empty-icon">📋</text>
+      <text class="empty-text">暂无报价单</text>
+    </view>
+    
+    <view wx:else class="quotation-list">
+      <view 
+        wx:for="{{quotationList}}" 
+        wx:key="id" 
+        class="quotation-card"
+        bindtap="handleViewQuotation"
+        data-quotation-id="{{item.id}}"
+      >
+        <view class="quotation-header">
+          <text class="quotation-title">{{item.title}}</text>
+          <view class="quotation-status status-{{item.status}}">
+            {{statusLabels[item.status]}}
+          </view>
+        </view>
+        
+        <view class="quotation-info">
+          <text class="info-item">💰 总价：¥{{item.total_amount}}</text>
+          <text class="info-item">📦 {{item.items.length}} 项</text>
+        </view>
+        
+        <view class="quotation-customer" wx:if="{{item.customer_name}}">
+          <text>客户：{{item.customer_name}}</text>
+        </view>
+        
+        <view class="quotation-actions">
+          <button 
+            wx:if="{{item.status === 'draft'}}"
+            class="btn-edit" 
+            catchtap="handleEditQuotation"
+            data-quotation-id="{{item.id}}"
+          >
+            编辑
+          </button>
+          <button 
+            wx:if="{{item.status === 'draft'}}"
+            class="btn-publish" 
+            catchtap="handlePublishQuotation"
+            data-quotation-id="{{item.id}}"
+          >
+            发布
+          </button>
+          <button 
+            wx:if="{{item.status === 'published'}}"
+            class="btn-share" 
+            catchtap="handleShareQuotation"
+            data-quotation-id="{{item.id}}"
+          >
+            分享
+          </button>
+        </view>
+      </view>
+    </view>
+  </view>
+</view>

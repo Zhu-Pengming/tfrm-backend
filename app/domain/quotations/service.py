@@ -1,12 +1,13 @@
 from sqlalchemy.orm import Session
-from app.infra.db import Quotation, QuotationItem, SKU, scoped_query
-from app.domain.quotations.schemas import QuotationCreate, QuotationUpdate
+from app.infra.db import Quotation, QuotationItem, scoped_query, SKU
+from app.domain.quotations.schemas import QuotationCreate, QuotationUpdate, QuotationItemCreate
 from app.domain.quotations.converters import SKUToQuoteItemConverter
 from app.infra.audit import audit_log
 from typing import Optional, List
 import uuid
 from datetime import datetime
 from decimal import Decimal
+import secrets
 
 
 class QuotationService:
@@ -143,9 +144,11 @@ class QuotationService:
         if not quotation:
             return None
         
+        if not quotation.share_token:
+            quotation.share_token = secrets.token_urlsafe(18)
         quotation.status = "published"
         quotation.published_at = datetime.utcnow()
-        quotation.published_url = f"/share/quotation/{quotation.id}"
+        quotation.published_url = f"/share/quotations/{quotation.share_token}"
         
         db.commit()
         
