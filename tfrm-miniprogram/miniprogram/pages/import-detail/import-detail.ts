@@ -56,7 +56,7 @@ Page({
 
     taskId: '',
 
-    task: {} as any,
+    task: { status: 'loading' } as any,
 
     loading: true,
 

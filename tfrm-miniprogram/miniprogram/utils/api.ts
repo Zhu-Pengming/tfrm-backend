@@ -13,13 +13,25 @@ interface RequestOptions {
 class ApiService {
   private token: string = ''
   private agencyId: string = ''
-  private uploadQueue: Array<() => void> = []
-  private isUploading: boolean = false
-  private currentUploadTask: WechatMiniprogram.UploadTask | null = null
+  private uploadChain: Promise<any> = Promise.resolve()
   private lastUploadTime: number = 0
+  private readonly minInterval: number = 4000
 
   constructor() {
     this.loadToken()
+
+    // ===== 调试：追踪所有 wx.uploadFile 调用 =====
+    const wxAny = wx as any
+    if (!wxAny.__upload_patched__) {
+      wxAny.__upload_patched__ = true
+      const raw = wx.uploadFile
+
+      wx.uploadFile = function (opts: any) {
+        console.warn('[TRACE] wx.uploadFile called url=', opts?.url)
+        console.warn('[TRACE] stack:', new Error().stack)
+        return raw.call(wx, opts)
+      } as any
+    }
   }
 
   private loadToken() {
@@ -336,98 +348,101 @@ class ApiService {
     })
   }
 
-  // ========== 文件上传 ==========
-  private processUploadQueue() {
-    if (this.isUploading || this.uploadQueue.length === 0) {
-      return
-    }
-    
-    if (this.currentUploadTask) {
-      try {
-        this.currentUploadTask.abort()
-        console.log('已中止之前的上传任务，等待2秒后继续')
-      } catch (e) {
-        console.warn('中止上传任务失败', e)
+  // ========== 文件上传 - 串行队列管理 ==========
+  private sleep(ms: number): Promise<void> {
+    return new Promise<void>(r => setTimeout(r, ms))
+  }
+
+  private isConnLimitError(e: any): boolean {
+    const msg = (e?.message || e?.errMsg || '').toString()
+    return msg.includes('exceed max upload connection count')
+  }
+
+  private enqueueUpload<T>(job: () => Promise<T>): Promise<T> {
+    const run = async () => {
+      const now = Date.now()
+      const wait = this.minInterval - (now - this.lastUploadTime)
+      if (wait > 0) {
+        await this.sleep(wait)
       }
-      this.currentUploadTask = null
-      
-      setTimeout(() => {
-        this.isUploading = true
-        const nextUpload = this.uploadQueue.shift()
-        if (nextUpload) {
-          nextUpload()
+
+      let backoff = 800
+      for (let attempt = 1; attempt <= 5; attempt++) {
+        try {
+          const res = await job()
+          return res
+        } catch (e: any) {
+          if (this.isConnLimitError(e)) {
+            console.warn(`[upload] connection limit hit, attempt ${attempt}, backoff ${backoff}ms`)
+            await this.sleep(backoff)
+            backoff = Math.min(backoff * 2, 8000)
+            continue
+          }
+          throw e
+        } finally {
+          this.lastUploadTime = Date.now()
         }
-      }, 2000)
-    } else {
-      this.isUploading = true
-      const nextUpload = this.uploadQueue.shift()
-      if (nextUpload) {
-        nextUpload()
       }
+
+      throw new Error('上传通道繁忙，请稍后重试')
     }
+
+    const p = this.uploadChain.then(run, run)
+    this.uploadChain = p.catch(() => {})
+    return p
   }
 
   uploadFile(filePath: string): Promise<{ url: string; file_id: string }> {
-    return new Promise((resolve, reject) => {
-      const executeUpload = () => {
-        const header: any = {}
-        if (this.token) {
-          header['Authorization'] = `Bearer ${this.token}`
-        }
-
-        const cleanup = () => {
-          this.currentUploadTask = null
-          this.isUploading = false
-          this.lastUploadTime = Date.now()
-          setTimeout(() => this.processUploadQueue(), 100)
-        }
-
-        const now = Date.now()
-        const timeSinceLastUpload = now - this.lastUploadTime
-        const minDelay = 2000
-        const actualDelay = Math.max(500, minDelay - timeSinceLastUpload)
-
-        setTimeout(() => {
-          try {
-            this.currentUploadTask = wx.uploadFile({
-              url: `${API_BASE_URL}/imports/upload`,
-              filePath,
-              name: 'file',
-              header,
-              success: (res) => {
-                cleanup()
-                
-                if (res.statusCode === 200 || res.statusCode === 201) {
-                  try {
-                    const data = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
-                    resolve(data)
-                  } catch (e) {
-                    console.error('解析响应失败', res.data)
-                    reject(new Error('解析响应失败'))
-                  }
-                } else {
-                  console.error('上传失败，状态码:', res.statusCode, '响应:', res.data)
-                  const errorMsg = res.data ? (typeof res.data === 'string' ? res.data : JSON.stringify(res.data)) : '上传失败'
-                  reject(new Error(errorMsg))
-                }
-              },
-              fail: (err) => {
-                cleanup()
-                console.error('上传请求失败', err)
-                reject(new Error('网络错误，请检查连接'))
-              }
-            })
-          } catch (e) {
-            console.error('创建上传任务失败', e)
-            cleanup()
-            reject(new Error('创建上传任务失败'))
-          }
-        }, actualDelay)
+    return this.enqueueUpload(() => new Promise((resolve, reject) => {
+      const header: any = {}
+      if (this.token) {
+        header['Authorization'] = `Bearer ${this.token}`
       }
 
-      this.uploadQueue.push(executeUpload)
-      this.processUploadQueue()
-    })
+      let okData: any = null
+      let errObj: any = null
+
+      wx.uploadFile({
+        url: `${API_BASE_URL}/imports/upload`,
+        filePath,
+        name: 'file',
+        header,
+        success: (res) => {
+          okData = res
+        },
+        fail: (err) => {
+          errObj = err
+        },
+        complete: async () => {
+          // 给运行时释放连接的缓冲时间（DevTools 特别需要）
+          await new Promise(r => setTimeout(r, 300))
+
+          if (errObj) {
+            console.error('上传请求失败', errObj)
+            return reject(errObj)
+          }
+
+          const res = okData
+          if (!res) {
+            return reject(new Error('上传失败'))
+          }
+
+          if (res.statusCode === 200 || res.statusCode === 201) {
+            try {
+              const data = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
+              resolve(data)
+            } catch (e) {
+              console.error('解析响应失败', res.data)
+              reject(new Error('解析响应失败'))
+            }
+          } else {
+            console.error('上传失败，状态码:', res.statusCode, '响应:', res.data)
+            const msg = res.data ? (typeof res.data === 'string' ? res.data : JSON.stringify(res.data)) : '上传失败'
+            reject(new Error(msg))
+          }
+        }
+      })
+    }))
   }
 
   // ========== 批量定价 ==========
@@ -450,69 +465,66 @@ class ApiService {
 
   // ========== AI提取 ==========
   extractWithAI(inputText: string, filePath: string | null): Promise<any> {
-    return new Promise((resolve, reject) => {
-      const header: any = {}
-      if (this.token) {
-        header['Authorization'] = `Bearer ${this.token}`
-      }
+    const header: any = {}
+    if (this.token) {
+      header['Authorization'] = `Bearer ${this.token}`
+    }
 
-      if (filePath) {
-        const executeUpload = () => {
-          const cleanup = () => {
-            this.currentUploadTask = null
-            this.isUploading = false
-            setTimeout(() => this.processUploadQueue(), 100)
-          }
+    if (filePath) {
+      return this.enqueueUpload(() => new Promise((resolve, reject) => {
+        let okData: any = null
+        let errObj: any = null
 
-          setTimeout(() => {
-            try {
-              this.currentUploadTask = wx.uploadFile({
-                url: `${API_BASE_URL}/imports/extract`,
-                filePath,
-                name: 'file',
-                header,
-                timeout: 60000,
-                success: (res) => {
-                  cleanup()
-                  
-                  if (res.statusCode === 200 || res.statusCode === 201) {
-                    try {
-                      const data = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
-                      resolve(data)
-                    } catch (e) {
-                      console.error('解析响应失败', res.data)
-                      reject(new Error('解析响应失败'))
-                    }
-                  } else {
-                    console.error('AI提取失败，状态码:', res.statusCode, '响应:', res.data)
-                    reject(new Error('AI提取失败'))
-                  }
-                },
-                fail: (err) => {
-                  cleanup()
-                  
-                  console.error('AI提取请求失败', err)
-                  if (err.errMsg && err.errMsg.includes('timeout')) {
-                    reject(new Error('上传超时，请检查网络或重试'))
-                  } else {
-                    reject(new Error('网络错误，请检查连接'))
-                  }
-                }
-              })
-            } catch (e) {
-              console.error('创建AI提取任务失败', e)
-              cleanup()
-              reject(new Error('创建上传任务失败'))
+        wx.uploadFile({
+          url: `${API_BASE_URL}/imports/extract`,
+          filePath,
+          name: 'file',
+          header,
+          timeout: 120000,
+          success: (res) => {
+            okData = res
+          },
+          fail: (err) => {
+            errObj = err
+          },
+          complete: async () => {
+            // 给运行时释放连接的缓冲时间
+            await new Promise(r => setTimeout(r, 300))
+
+            if (errObj) {
+              console.error('AI提取请求失败', errObj)
+              if (errObj?.errMsg?.includes('timeout')) {
+                return reject(new Error('上传超时，请检查网络或重试'))
+              } else {
+                return reject(new Error(errObj?.errMsg || '网络错误，请检查连接'))
+              }
             }
-          }, 500)
-        }
-        
-        this.uploadQueue.push(executeUpload)
-        this.processUploadQueue()
-      } else {
-        // Text mode: send as FormData using wx.request with proper content-type
-        header['Content-Type'] = 'application/x-www-form-urlencoded'
-        
+
+            const res = okData
+            if (!res) {
+              return reject(new Error('AI提取失败'))
+            }
+
+            if (res.statusCode === 200 || res.statusCode === 201) {
+              try {
+                const data = typeof res.data === 'string' ? JSON.parse(res.data) : res.data
+                resolve(data)
+              } catch (e) {
+                console.error('解析响应失败', res.data)
+                reject(new Error('解析响应失败'))
+              }
+            } else {
+              console.error('AI提取失败，状态码:', res.statusCode, '响应:', res.data)
+              reject(new Error('AI提取失败'))
+            }
+          }
+        })
+      }))
+    } else {
+      // Text mode: send as FormData using wx.request with proper content-type
+      header['Content-Type'] = 'application/x-www-form-urlencoded'
+      
+      return new Promise((resolve, reject) => {
         wx.request({
           url: `${API_BASE_URL}/imports/extract`,
           method: 'POST',
@@ -533,15 +545,15 @@ class ApiService {
           },
           fail: (err) => {
             console.error('AI提取请求失败', err)
-            if (err.errMsg && err.errMsg.includes('timeout')) {
+            if (err?.errMsg?.includes('timeout')) {
               reject(new Error('上传超时，请检查网络或重试'))
             } else {
               reject(new Error('网络错误，请检查连接'))
             }
           }
         })
-      }
-    })
+      })
+    }
   }
 
   extractWithFileUrl(fileUrl: string): Promise<any> {

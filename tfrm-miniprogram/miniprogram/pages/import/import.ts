@@ -32,7 +32,7 @@ Page({
 
   handleChooseImage() {
     if (this.data.loading) {
-      wx.showToast({ title: '上传中，请稍候', icon: 'none' })
+      wx.showToast({ title: '操作中，请稍候', icon: 'none' })
       return
     }
     
@@ -40,23 +40,12 @@ Page({
       count: 1,
       sizeType: ['compressed'],
       sourceType: ['album', 'camera'],
-      success: async (res) => {
+      success: (res) => {
         const filePath = res.tempFilePaths[0]
-        this.setData({ loading: true })
-        
-        try {
-          const uploadResult = await api.uploadFile(filePath)
-          this.setData({ 
-            uploadedFileUrl: uploadResult.url,
-            selectedFiles: [{ name: '已选择图片', path: filePath }]
-          })
-          wx.showToast({ title: '图片上传成功', icon: 'success' })
-        } catch (error) {
-          console.error('上传失败', error)
-          wx.showToast({ title: '上传失败，请重试', icon: 'none' })
-        } finally {
-          this.setData({ loading: false })
-        }
+        this.setData({ 
+          selectedFiles: [{ name: '已选择图片', path: filePath }]
+        })
+        wx.showToast({ title: '图片已选择，点击提交开始解析', icon: 'success' })
       },
       fail: (err) => {
         console.error('选择图片失败', err)
@@ -67,31 +56,20 @@ Page({
 
   handleChooseFile() {
     if (this.data.loading) {
-      wx.showToast({ title: '上传中，请稍候', icon: 'none' })
+      wx.showToast({ title: '操作中，请稍候', icon: 'none' })
       return
     }
     
     wx.chooseMessageFile({
       count: 1,
       type: 'all',
-      success: async (res) => {
+      success: (res) => {
         const filePath = res.tempFiles[0].path
         const fileName = res.tempFiles[0].name
-        this.setData({ loading: true })
-        
-        try {
-          const uploadResult = await api.uploadFile(filePath)
-          this.setData({ 
-            uploadedFileUrl: uploadResult.url,
-            selectedFiles: [{ name: fileName, path: filePath }]
-          })
-          wx.showToast({ title: '文件上传成功', icon: 'success' })
-        } catch (error) {
-          console.error('上传失败', error)
-          wx.showToast({ title: '上传失败，请重试', icon: 'none' })
-        } finally {
-          this.setData({ loading: false })
-        }
+        this.setData({ 
+          selectedFiles: [{ name: fileName, path: filePath }]
+        })
+        wx.showToast({ title: '文件已选择，点击提交开始解析', icon: 'success' })
       },
       fail: (err) => {
         console.error('选择文件失败', err)
@@ -101,15 +79,15 @@ Page({
   },
 
   async handleStartParse() {
-    const { inputText, mode, uploadedFileUrl } = this.data
+    const { inputText, mode, selectedFiles } = this.data
 
     if (mode === 'text' && !inputText.trim()) {
       wx.showToast({ title: '请输入资源信息', icon: 'none' })
       return
     }
 
-    if (mode === 'file' && !uploadedFileUrl) {
-      wx.showToast({ title: '请先上传文件', icon: 'none' })
+    if (mode === 'file' && (!selectedFiles || selectedFiles.length === 0)) {
+      wx.showToast({ title: '请先选择文件', icon: 'none' })
       return
     }
 
@@ -121,12 +99,13 @@ Page({
       if (mode === 'text') {
         result = await api.extractWithAI(inputText, null)
       } else {
-        result = await api.extractWithFileUrl(uploadedFileUrl)
+        const filePath = selectedFiles[0].path
+        result = await api.extractWithAI('', filePath)
       }
       
       wx.showToast({ title: '提交成功，AI解析中...', icon: 'success' })
       
-      this.setData({ inputText: '', uploadedFileUrl: '', selectedFiles: [] })
+      this.setData({ inputText: '', selectedFiles: [] })
       
       setTimeout(() => {
         wx.navigateTo({
