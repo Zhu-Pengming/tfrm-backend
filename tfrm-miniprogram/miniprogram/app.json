@@ -9,7 +9,8 @@
     "pages/quotation-edit/quotation-edit",
     "pages/publish-success/publish-success",
     "pages/vendor/vendor",
-    "pages/vendor-detail/vendor-detail"
+    "pages/vendor-detail/vendor-detail",
+    "pages/vendor-edit/vendor-edit"
   ],
   "tabBar": {
     "color": "#666666",

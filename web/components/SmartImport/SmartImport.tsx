@@ -126,6 +126,33 @@ const SmartImport: React.FC<SmartImportProps> = ({ onSaveSKU }) => {
       return { price: num(ef.cost_price) ?? num(ef.daily_cost_price) ?? 0, salesPrice: num(ef.sell_price) ?? num(ef.cost_price) ?? 0 };
     };
 
+    const formatPrice = (priceValue: any): string | undefined => {
+      if (!priceValue) return undefined;
+      
+      // If it's already a number or string, use it directly
+      if (typeof priceValue === 'number') return `¥${priceValue}`;
+      if (typeof priceValue === 'string' && !isNaN(Number(priceValue))) return `¥${priceValue}`;
+      
+      // If it's an array, extract the first price value
+      if (Array.isArray(priceValue) && priceValue.length > 0) {
+        const firstItem = priceValue[0];
+        if (typeof firstItem === 'number') return `¥${firstItem}`;
+        if (typeof firstItem === 'object' && firstItem !== null) {
+          // Try common price field names
+          const price = firstItem.price || firstItem.daily_price || firstItem.adult_price || firstItem.cost_price;
+          if (price !== undefined) return `¥${price}`;
+        }
+      }
+      
+      // If it's an object, try to extract price
+      if (typeof priceValue === 'object' && priceValue !== null && !Array.isArray(priceValue)) {
+        const price = priceValue.price || priceValue.daily_price || priceValue.adult_price || priceValue.cost_price;
+        if (price !== undefined) return `¥${price}`;
+      }
+      
+      return undefined;
+    };
+
     const buildCategoryAttributes = (type: string, ef: any) => {
       if (type === 'hotel') {
         const room = (ef.room_types || [])[0] || {};
@@ -145,9 +172,14 @@ const SmartImport: React.FC<SmartImportProps> = ({ onSaveSKU }) => {
       }
       if (type === 'activity') {
         return {
-          duration: ef.duration_hours ? `${ef.duration_hours}h` : undefined,
+          duration: ef.duration_hours ? `${ef.duration_hours}h` : (ef.days ? `${ef.days}天${ef.nights ? ef.nights + '晚' : ''}` : undefined),
           language: ef.language_service,
-          meetingPoint: ef.meeting_point
+          meetingPoint: ef.meeting_point,
+          depart_city: ef.depart_city,
+          arrive_city: ef.arrive_city,
+          groupSize: ef.min_pax && ef.max_pax ? `${ef.min_pax}-${ef.max_pax}人` : undefined,
+          adult_price: formatPrice(ef.adult_price),
+          child_price: formatPrice(ef.child_price)
         };
       }
       if (type === 'guide') {
@@ -163,8 +195,13 @@ const SmartImport: React.FC<SmartImportProps> = ({ onSaveSKU }) => {
       }
       if (type === 'itinerary') {
         return {
-          duration: ef.days ? `${ef.days}d${ef.nights ? ef.nights + 'n' : ''}` : undefined,
-          groupSize: ef.min_pax && ef.max_pax ? `${ef.min_pax}-${ef.max_pax} pax` : undefined
+          duration: ef.days ? `${ef.days}天${ef.nights ? ef.nights + '晚' : ''}` : undefined,
+          depart_city: ef.depart_city,
+          arrive_city: ef.arrive_city,
+          groupSize: ef.min_pax && ef.max_pax ? `${ef.min_pax}-${ef.max_pax}人` : undefined,
+          itinerary_type: ef.itinerary_type,
+          adult_price: formatPrice(ef.adult_price),
+          child_price: formatPrice(ef.child_price)
         };
       }
       if (type === 'ticket') {
@@ -335,6 +372,16 @@ const SmartImport: React.FC<SmartImportProps> = ({ onSaveSKU }) => {
                            specialPackages={extractedData.rawExtracted.special_packages}
                            contactInfo={extractedData.rawExtracted.contact_info}
                          />
+                       )}
+
+                       {/* 完整提取数据 */}
+                       {extractedData.rawExtracted && (
+                         <div className="bg-slate-50 p-6 rounded-3xl border border-slate-200">
+                           <p className="text-[9px] text-slate-400 font-black mb-4 uppercase tracking-widest">完整提取数据 (Raw Extracted)</p>
+                           <pre className="text-[10px] text-slate-700 overflow-auto max-h-96 bg-white p-4 rounded-xl border border-slate-200">
+                             {JSON.stringify(extractedData.rawExtracted, null, 2)}
+                           </pre>
+                         </div>
                        )}
                     </div>
                   ) : (

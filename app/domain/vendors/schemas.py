@@ -10,7 +10,7 @@ class VendorCreate(BaseModel):
     phone: str
     email: EmailStr
     category: List[str]
-    specialties: List[str]
+    specialties: Optional[List[str]] = None
     address: Optional[str] = None
     note: Optional[str] = None
 
@@ -44,7 +44,7 @@ class VendorResponse(BaseModel):
     specialties: List[str]
     status: str
     rating: float
-    address: str
+    address: Optional[str]
     note: Optional[str]
     created_at: datetime
     updated_at: datetime

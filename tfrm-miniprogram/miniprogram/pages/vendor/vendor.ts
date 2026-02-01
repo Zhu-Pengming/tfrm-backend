@@ -19,6 +19,7 @@ Page({
     vendorList: [] as any[],
     loading: false,
     showAddModal: false,
+    editingVendorId: '',
     formData: {
       name: '',
       contact: '',
@@ -99,6 +100,55 @@ Page({
     })
   },
 
+  handleEditVendor(e: any) {
+    const vendorId = e.currentTarget.dataset.vendorId
+    console.log('Edit vendor clicked:', vendorId)
+    const url = `/pages/vendor-edit/vendor-edit?vendorId=${vendorId}`
+    console.log('Navigating to:', url)
+    wx.navigateTo({
+      url: url,
+      success: () => {
+        console.log('Navigation success')
+      },
+      fail: (err) => {
+        console.error('Navigation failed:', err)
+      }
+    })
+  },
+
+  handleDeleteVendor(e: any) {
+    const vendorId = e.currentTarget.dataset.vendorId
+    const vendor = this.data.vendorList.find((v: any) => v.id === vendorId)
+    
+    console.log('Delete vendor:', vendorId, vendor?.name)
+    
+    wx.showModal({
+      title: '删除供应商',
+      content: `确定要删除供应商"${vendor?.name}"吗？此操作无法撤销。`,
+      confirmText: '删除',
+      confirmColor: '#DC2626',
+      success: async (res) => {
+        if (res.confirm) {
+          try {
+            console.log('Deleting vendor:', vendorId)
+            await api.deleteVendor(vendorId)
+            wx.showToast({
+              title: '删除成功',
+              icon: 'success'
+            })
+            this.loadVendors()
+          } catch (error) {
+            console.error('删除供应商失败', error)
+            wx.showToast({
+              title: '删除失败',
+              icon: 'none'
+            })
+          }
+        }
+      }
+    })
+  },
+
   showAddVendorModal() {
     this.setData({ 
       showAddModal: true,
@@ -117,33 +167,79 @@ Page({
     this.setData({ showAddModal: false })
   },
 
-  onFormInput(e: any) {
-    const field = e.currentTarget.dataset.field
-    this.setData({
-      [`formData.${field}`]: e.detail.value
-    })
+  preventClose() {
+    // This handler prevents the modal from closing when clicking inside it
+  },
+
+  isValidEmail(email: string): boolean {
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/
+    return emailRegex.test(email)
+  },
+
+  handleNameInput(e: any) {
+    const { formData } = this.data
+    formData.name = e.detail.value
+    this.setData({ formData })
+  },
+
+  handleContactInput(e: any) {
+    const { formData } = this.data
+    formData.contact = e.detail.value
+    this.setData({ formData })
+  },
+
+  handlePhoneInput(e: any) {
+    const { formData } = this.data
+    formData.phone = e.detail.value
+    this.setData({ formData })
+  },
+
+  handleEmailInput(e: any) {
+    const { formData } = this.data
+    formData.email = e.detail.value
+    this.setData({ formData })
+  },
+
+  handleAddressInput(e: any) {
+    const { formData } = this.data
+    formData.address = e.detail.value
+    this.setData({ formData })
   },
 
   toggleCategory(e: any) {
     const category = e.currentTarget.dataset.category
     const { formData } = this.data
-    const index = formData.category.indexOf(category)
+    const currentCategories = [...formData.category]
+    const index = currentCategories.indexOf(category)
     
     if (index > -1) {
-      formData.category.splice(index, 1)
+      currentCategories.splice(index, 1)
     } else {
-      formData.category.push(category)
+      currentCategories.push(category)
     }
     
-    this.setData({ formData })
+    console.log('Category toggled:', category, 'New categories:', currentCategories)
+    this.setData({ 
+      'formData.category': currentCategories
+    })
   },
 
   async handleSubmitVendor() {
-    const { formData } = this.data
+    const { formData, editingVendorId } = this.data
+    
+    console.log('Form Data:', JSON.stringify(formData))
     
     if (!formData.name || !formData.contact || !formData.phone || !formData.email) {
       wx.showToast({
         title: '请填写必填项',
+        icon: 'none'
+      })
+      return
+    }
+
+    if (!this.isValidEmail(formData.email)) {
+      wx.showToast({
+        title: '邮箱格式不正确',
         icon: 'none'
       })
       return
@@ -158,26 +254,37 @@ Page({
     }
 
     try {
-      await api.createVendor({
+      const payload = {
         name: formData.name,
         contact: formData.contact,
         phone: formData.phone,
         email: formData.email,
         category: formData.category,
         address: formData.address || undefined
-      })
-
-      wx.showToast({
-        title: '添加成功',
-        icon: 'success'
-      })
+      }
+      
+      console.log('Submitting vendor:', JSON.stringify(payload))
+      
+      if (editingVendorId) {
+        await api.updateVendor(editingVendorId, payload)
+        wx.showToast({
+          title: '更新成功',
+          icon: 'success'
+        })
+      } else {
+        await api.createVendor(payload)
+        wx.showToast({
+          title: '添加成功',
+          icon: 'success'
+        })
+      }
 
       this.hideAddModal()
       this.loadVendors()
     } catch (error) {
-      console.error('添加供应商失败', error)
+      console.error('操作失败', error)
       wx.showToast({
-        title: '添加失败',
+        title: '操作失败',
         icon: 'none'
       })
     }

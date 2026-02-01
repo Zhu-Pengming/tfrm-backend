@@ -1,0 +1,115 @@
+<view class="vendor-edit-container">
+  <view wx:if="{{loading}}" class="loading-state">
+    <view class="loading-spinner"></view>
+    <text class="loading-text">加载中...</text>
+  </view>
+
+  <view wx:if="{{!loading}}" class="edit-content">
+    <!-- Edit Form -->
+    <scroll-view scroll-y class="form-container">
+      <view class="form-section">
+        <text class="section-title">基本信息</text>
+        
+        <view class="form-group">
+          <text class="form-label">供应商名称 *</text>
+          <input 
+            class="form-input" 
+            placeholder="输入供应商名称"
+            value="{{name}}"
+            bindinput="handleNameInput"
+            maxlength="100"
+            cursor-spacing="10"
+          />
+        </view>
+
+        <view class="form-group">
+          <text class="form-label">联系人 *</text>
+          <input 
+            class="form-input" 
+            placeholder="输入联系人名称"
+            value="{{contact}}"
+            bindinput="handleContactInput"
+            maxlength="100"
+            cursor-spacing="10"
+          />
+        </view>
+
+        <view class="form-group">
+          <text class="form-label">电话 *</text>
+          <input 
+            class="form-input" 
+            type="number"
+            placeholder="输入电话号码"
+            value="{{phone}}"
+            bindinput="handlePhoneInput"
+            maxlength="20"
+            cursor-spacing="10"
+          />
+        </view>
+
+        <view class="form-group">
+          <text class="form-label">邮箱 *</text>
+          <input 
+            class="form-input" 
+            type="text"
+            placeholder="输入邮箱地址"
+            value="{{email}}"
+            bindinput="handleEmailInput"
+            maxlength="100"
+            cursor-spacing="10"
+          />
+        </view>
+      </view>
+
+      <view class="form-section">
+        <text class="section-title">服务类别 *</text>
+        <view class="category-grid">
+          <view 
+            wx:for="{{categories}}" 
+            wx:key="value"
+            class="category-option {{category.indexOf(item.value) > -1 ? 'selected' : ''}}"
+            bindtap="toggleCategory"
+            data-category="{{item.value}}"
+          >
+            <text class="option-icon">{{item.icon}}</text>
+            <text class="option-label">{{item.label}}</text>
+          </view>
+        </view>
+      </view>
+
+      <view class="form-section">
+        <text class="section-title">其他信息</text>
+        
+        <view class="form-group">
+          <text class="form-label">地址</text>
+          <input 
+            class="form-input" 
+            placeholder="输入供应商地址（可选）"
+            value="{{address}}"
+            bindinput="handleAddressInput"
+            maxlength="200"
+            cursor-spacing="10"
+          />
+        </view>
+
+        <view class="info-item" wx:if="{{vendor}}">
+          <text class="info-label">评分</text>
+          <text class="info-value">⭐ {{vendor.rating}}</text>
+        </view>
+
+        <view class="info-item" wx:if="{{vendor}}">
+          <text class="info-label">创建时间</text>
+          <text class="info-value">{{vendor.created_at}}</text>
+        </view>
+      </view>
+
+      <view class="form-section-spacer"></view>
+    </scroll-view>
+
+    <!-- Action Buttons -->
+    <view class="action-footer">
+      <button class="btn-delete" bindtap="handleDelete">删除供应商</button>
+      <button class="btn-submit" bindtap="handleSubmit">保存更改</button>
+    </view>
+  </view>
+</view>

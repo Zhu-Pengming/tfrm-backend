@@ -26,7 +26,7 @@ class VendorService:
             phone=vendor_data.phone,
             email=vendor_data.email,
             category=vendor_data.category,
-            specialties=vendor_data.specialties,
+            specialties=vendor_data.specialties or [],
             status="Active",
             rating=5.0,
             address=vendor_data.address,
@@ -59,7 +59,7 @@ class VendorService:
         query = db.query(Vendor).filter(Vendor.agency_id == agency_id)
         
         if category and category != "All":
-            query = query.filter(Vendor.category.contains([category]))
+            query = query.filter(Vendor.category.any(category))
         
         if status and status != "All":
             query = query.filter(Vendor.status == status)
