@@ -64,19 +64,25 @@
 
     <view class="sku-type-section">
 
-      <view class="section-title">资源类型</view>
+      <view class="section-title">
+        资源类型
+        <text wx:if="{{typeAutoDetected && typeConfidence >= 0.8}}" class="ai-badge">🤖 AI识别</text>
+      </view>
 
-      <picker mode="selector" range="{{skuTypes}}" range-key="label" value="{{selectedTypeIndex}}" bindchange="onSkuTypeChange">
+      <picker mode="selector" range="{{skuTypes}}" range-key="label" value="{{selectedTypeIndex}}" bindchange="onSkuTypeChange" disabled="{{typeAutoDetected}}">
 
-        <view class="picker-field">
+        <view class="picker-field {{typeAutoDetected ? 'disabled' : ''}}">
 
           <text>{{skuTypes[selectedTypeIndex].label}}</text>
 
-          <text class="picker-arrow">▼</text>
+          <text class="picker-arrow" wx:if="{{!typeAutoDetected}}">▼</text>
+          <text class="lock-icon" wx:else>🔒</text>
 
         </view>
 
       </picker>
+      
+      <text wx:if="{{typeAutoDetected}}" class="type-hint">AI已自动识别类型（置信度{{typeConfidencePercent}}%），如需修改请联系管理员</text>
 
     </view>
 

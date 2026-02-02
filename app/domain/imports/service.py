@@ -126,9 +126,41 @@ class ImportService:
         elif confirm_data.sku_type == "itinerary":
             if "itinerary_name" not in attrs:
                 attrs["itinerary_name"] = confirm_data.extracted_fields.get("sku_name", "未命名行程")
-            # 确保数组字段是列表类型
-            if "departure_dates" in attrs and isinstance(attrs["departure_dates"], str):
-                attrs["departure_dates"] = [attrs["departure_dates"]]
+            if "days" not in attrs:
+                attrs["days"] = 1
+            if "depart_city" not in attrs:
+                # 尝试从目的地城市或国家构建出发城市
+                attrs["depart_city"] = confirm_data.extracted_fields.get("destination_city") or confirm_data.extracted_fields.get("destination_country") or "待确定"
+            # 处理departure_dates字段 - 提取价格信息
+            if "departure_dates" in attrs:
+                dates = attrs["departure_dates"]
+                prices = []
+                
+                if isinstance(dates, str):
+                    # 如果是字符串且包含价格符号，尝试提取价格
+                    if "¥" in dates or ":" in dates:
+                        # 尝试提取所有价格数字
+                        import re
+                        price_matches = re.findall(r'¥?(\d+)', dates)
+                        prices = [int(p) for p in price_matches if int(p) > 100]  # 过滤掉日期数字
+                        del attrs["departure_dates"]
+                    else:
+                        attrs["departure_dates"] = [dates]
+                elif isinstance(dates, list) and dates:
+                    # 检查列表中的第一个元素
+                    if isinstance(dates[0], str) and ("¥" in dates[0] or ":" in dates[0]):
+                        # 包含价格信息，提取价格
+                        import re
+                        for date_str in dates:
+                            price_matches = re.findall(r'¥?(\d+)', str(date_str))
+                            prices.extend([int(p) for p in price_matches if int(p) > 100])
+                        del attrs["departure_dates"]
+                
+                # 如果提取到价格，使用最低价作为adult_price
+                if prices and "adult_price" not in attrs:
+                    attrs["adult_price"] = min(prices)
+            
+            # 确保其他数组字段是列表类型
             if "highlights" in attrs and isinstance(attrs["highlights"], str):
                 attrs["highlights"] = [attrs["highlights"]]
             if "included_services" in attrs and isinstance(attrs["included_services"], str):
@@ -138,8 +170,28 @@ class ImportService:
         if isinstance(tags, str):
             tags = [tag.strip() for tag in tags.split(",")]
         
+        # 处理highlights字段
+        highlights = confirm_data.extracted_fields.get("highlights")
+        if highlights and isinstance(highlights, str):
+            highlights = [highlights]
+        
+        # 处理included_services字段（映射到inclusions）
+        inclusions = confirm_data.extracted_fields.get("included_services") or confirm_data.extracted_fields.get("inclusions")
+        if inclusions and isinstance(inclusions, str):
+            inclusions = [inclusions]
+        
+        # 获取SKU名称，优先使用itinerary_name或其他类型特定名称
+        sku_name = (
+            confirm_data.extracted_fields.get("sku_name") or
+            attrs.get("itinerary_name") or
+            attrs.get("hotel_name") or
+            attrs.get("activity_name") or
+            attrs.get("restaurant_name") or
+            "未命名资源"
+        )
+        
         sku_create = SKUCreate(
-            sku_name=confirm_data.extracted_fields.get("sku_name", "Unnamed SKU"),
+            sku_name=sku_name,
             sku_type=confirm_data.sku_type,
             owner_type="private",
             supplier_id=confirm_data.extracted_fields.get("supplier_id"),
@@ -153,6 +205,9 @@ class ImportService:
             cancel_policy=confirm_data.extracted_fields.get("cancel_policy"),
             include_items=confirm_data.extracted_fields.get("include_items"),
             exclude_items=confirm_data.extracted_fields.get("exclude_items"),
+            description=confirm_data.extracted_fields.get("description"),
+            highlights=highlights,
+            inclusions=inclusions,
             attrs=attrs
         )
         

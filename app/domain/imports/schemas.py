@@ -15,6 +15,7 @@ class ImportTaskResponse(BaseModel):
     status: str
     input_text: Optional[str]
     input_files: Optional[List[str]]
+    parsed_result: Optional[Dict[str, Any]]  # Full parsed result including sku_type
     extracted_fields: Optional[Dict[str, Any]]
     confidence: Optional[Any]  # Can be float (overall) or Dict[str, float] (per field)
     evidence: Optional[Dict[str, Any]]  # Dict with field evidence details

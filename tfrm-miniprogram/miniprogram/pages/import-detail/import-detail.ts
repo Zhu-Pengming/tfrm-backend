@@ -130,7 +130,13 @@ Page({
 
     pollingTimer: null as any,
 
-    confidencePercent: '0'
+    confidencePercent: '0',
+
+    typeAutoDetected: false,
+
+    typeConfidence: 0,
+
+    typeConfidencePercent: '0'
 
   },
 
@@ -188,18 +194,49 @@ Page({
 
         // Auto-select SKU type based on AI extraction
 
+        console.log('=== SKU Type Auto-Selection Debug ===')
+        console.log('task.parsed_result:', task.parsed_result)
+        console.log('task.parsed_result.sku_type:', task.parsed_result?.sku_type)
+        
+        let detectedSkuType = null
+        
+        // Try to get sku_type from parsed_result first
         if (task.parsed_result && task.parsed_result.sku_type) {
-
-          const skuType = task.parsed_result.sku_type
-
-          const typeIndex = SKU_TYPES.findIndex(t => t.value === skuType)
-
-          if (typeIndex >= 0) {
-
-            this.setData({ selectedTypeIndex: typeIndex })
-
+          detectedSkuType = task.parsed_result.sku_type
+        }
+        
+        if (detectedSkuType) {
+          const typeIndex = SKU_TYPES.findIndex(t => t.value === detectedSkuType)
+          console.log('Detected SKU type:', detectedSkuType)
+          console.log('Type index:', typeIndex)
+          
+          // Get confidence for sku_type - handle both object and numeric formats
+          let typeConfidence = 0.9 // Default to 0.9 if not found
+          if (task.confidence) {
+            if (typeof task.confidence === 'object' && 'sku_type' in task.confidence) {
+              const confValue = (task.confidence as any).sku_type
+              if (typeof confValue === 'number' && confValue > 0) {
+                typeConfidence = confValue
+              }
+            } else if (typeof task.confidence === 'number' && task.confidence > 0) {
+              typeConfidence = task.confidence
+            }
           }
-
+          
+          if (typeIndex >= 0) {
+            const confidencePercent = Math.round(typeConfidence * 100)
+            this.setData({ 
+              selectedTypeIndex: typeIndex,
+              typeAutoDetected: true,
+              typeConfidence: typeConfidence,
+              typeConfidencePercent: confidencePercent.toString()
+            })
+            console.log('Auto-selected type index:', typeIndex, '(', SKU_TYPES[typeIndex].label, ') with confidence:', typeConfidence)
+          } else {
+            console.warn('SKU type not found in SKU_TYPES:', detectedSkuType)
+          }
+        } else {
+          console.warn('No sku_type found in parsed_result, defaulting to index 0 (hotel)')
         }
 
       }

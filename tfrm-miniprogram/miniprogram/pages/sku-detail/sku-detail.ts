@@ -112,82 +112,8 @@ Page({
         return String(value)
       }
       
-      // 智能判断实际的资源类型（基于attrs中存在的字段）
-      const detectActualType = (attrs: any): string => {
-        const keys = Object.keys(attrs || {})
-        
-        // 计算每种类型的匹配分数
-        const scores: Record<string, number> = {
-          itinerary: 0,
-          hotel: 0,
-          ticket: 0,
-          guide: 0,
-          transport: 0,
-          restaurant: 0,
-          activity: 0
-        }
-        
-        // 行程类型特征字段（权重更高）
-        if (keys.includes('itinerary_name')) scores.itinerary += 10
-        if (keys.includes('days')) scores.itinerary += 8
-        if (keys.includes('nights')) scores.itinerary += 8
-        if (keys.includes('departure_dates')) scores.itinerary += 10
-        if (keys.includes('highlights')) scores.itinerary += 5
-        if (keys.includes('included_services')) scores.itinerary += 5
-        
-        // 酒店类型特征字段
-        if (keys.includes('hotel_name')) scores.hotel += 10
-        if (keys.includes('room_type_name')) scores.hotel += 8
-        if (keys.includes('address')) scores.hotel += 3
-        
-        // 其他类型
-        if (keys.includes('attraction_name')) scores.ticket += 10
-        if (keys.includes('guide_name')) scores.guide += 10
-        if (keys.includes('vehicle_type')) scores.transport += 10
-        if (keys.includes('restaurant_name')) scores.restaurant += 10
-        if (keys.includes('activity_name')) scores.activity += 10
-        
-        // 找出得分最高的类型
-        let maxScore = 0
-        let detectedType = sku.sku_type
-        
-        for (const [type, score] of Object.entries(scores)) {
-          if (score > maxScore) {
-            maxScore = score
-            detectedType = type
-          }
-        }
-        
-        // 如果得分太低，使用原始类型
-        return maxScore >= 8 ? detectedType : sku.sku_type
-      }
-      
-      // 根据实际类型获取相关字段
-      const getRelevantFields = (type: string): string[] => {
-        const fieldMap: Record<string, string[]> = {
-          'hotel': ['hotel_name', 'room_type_name', 'address', 'daily_cost_price', 'daily_sell_price'],
-          'itinerary': ['itinerary_name', 'days', 'nights', 'departure_dates', 'highlights', 'included_services', 'booking_notes', 'supplier_name'],
-          'ticket': ['attraction_name', 'ticket_type'],
-          'guide': ['guide_name', 'language'],
-          'transport': ['vehicle_type', 'capacity'],
-          'restaurant': ['restaurant_name', 'cuisine_type', 'meal_types', 'per_person_price'],
-          'activity': ['activity_name', 'category', 'duration_hours', 'meeting_point', 'included_items']
-        }
-        return fieldMap[type] || []
-      }
-      
-      const actualType = detectActualType(sku.attrs)
-      const relevantFields = getRelevantFields(actualType)
-      
+      // 显示所有attrs中的字段，不进行过滤
       const attrsList = Object.keys(sku.attrs || {})
-        .filter(key => {
-          // 如果有定义相关字段，只显示相关字段
-          if (relevantFields.length > 0) {
-            return relevantFields.includes(key)
-          }
-          // 否则显示所有字段
-          return true
-        })
         .map(key => ({
           key,
           label: ATTR_LABELS[key] || key,
