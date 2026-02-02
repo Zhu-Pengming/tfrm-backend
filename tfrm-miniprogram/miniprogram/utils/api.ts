@@ -143,6 +143,7 @@ class ApiService {
       evidence: any
       confidence: number
       error_message?: string
+      parsed_result?: any
     }>({
       url: `/imports/${taskId}`,
       method: 'GET'
@@ -161,6 +162,13 @@ class ApiService {
       url: `/imports/${taskId}/confirm`,
       method: 'POST',
       data: { sku_type: skuType, extracted_fields: extractedFields }
+    })
+  }
+
+  deleteImportTask(taskId: string) {
+    return this.request<{ message: string }>({
+      url: `/imports/${taskId}`,
+      method: 'DELETE'
     })
   }
 

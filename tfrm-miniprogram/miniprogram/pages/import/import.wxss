@@ -232,34 +232,60 @@
 }
 
 .task-list {
-  margin-top: 0;
+  display: flex;
+  flex-direction: column;
+  gap: 20rpx;
 }
 
-.task-item {
-  padding: 24rpx;
-  border-bottom: 2rpx solid #F1F5F9;
-  transition: background 0.2s;
-}
-
-.task-item:active {
+.task-card {
   background: #F8FAFC;
+  border-radius: 24rpx;
+  overflow: hidden;
+  border: 2rpx solid #E2E8F0;
+  transition: all 0.3s;
 }
 
-.task-item:last-child {
-  border-bottom: none;
+.task-card:active {
+  transform: scale(0.98);
+}
+
+.task-main {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  padding: 24rpx;
+  background: #ffffff;
+}
+
+.task-left {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+
+.task-right {
+  display: flex;
+  align-items: center;
 }
 
 .task-header {
   display: flex;
-  justify-content: space-between;
-  align-items: center;
-  margin-bottom: 12rpx;
+  align-items: baseline;
+  gap: 8rpx;
 }
 
 .task-id {
-  font-size: 28rpx;
-  color: #0F172A;
-  font-weight: 700;
+  font-size: 24rpx;
+  color: #64748B;
+  font-weight: 600;
+}
+
+.task-id-value {
+  font-size: 22rpx;
+  color: #94A3B8;
+  font-family: monospace;
+  font-weight: 500;
 }
 
 .task-status {
@@ -298,4 +324,61 @@
   font-size: 22rpx;
   color: #94A3B8;
   font-weight: 500;
+}
+
+.task-sku {
+  display: flex;
+  align-items: center;
+  gap: 8rpx;
+  padding: 8rpx 16rpx;
+  background: #DCFCE7;
+  border-radius: 12rpx;
+  width: fit-content;
+}
+
+.sku-icon {
+  font-size: 24rpx;
+}
+
+.sku-text {
+  font-size: 20rpx;
+  color: #166534;
+  font-weight: 700;
+}
+
+.task-actions {
+  display: flex;
+  gap: 2rpx;
+  background: #E2E8F0;
+}
+
+.action-btn {
+  flex: 1;
+  height: 80rpx;
+  border: none;
+  border-radius: 0;
+  font-size: 26rpx;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8rpx;
+}
+
+.btn-detail {
+  background: #3B82F6;
+  color: #ffffff;
+}
+
+.btn-detail:active {
+  background: #2563EB;
+}
+
+.btn-delete {
+  background: #EF4444;
+  color: #ffffff;
+}
+
+.btn-delete:active {
+  background: #DC2626;
 }

@@ -16,6 +16,7 @@ logging.basicConfig(
 logger = logging.getLogger(__name__)
 
 from app.infra.db import get_db, init_db
+from app.infra.audit import audit_log
 from app.domain.auth.schemas import UserCreate, UserLogin, Token, UserResponse
 from app.domain.auth.service import AuthService
 from app.domain.auth.dependencies import get_current_user, get_current_user_optional
@@ -393,6 +394,33 @@ def confirm_import_task(
     if not sku_id:
         raise HTTPException(status_code=400, detail="Cannot confirm import task")
     return {"message": "Import confirmed", "sku_id": sku_id}
+
+
+@app.delete("/imports/{task_id}")
+def delete_import_task(
+    task_id: str,
+    current_user: Tuple[str, str, str] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    user_id, agency_id, username = current_user
+    task = ImportService.get_import_task(db, agency_id, task_id)
+    if not task:
+        raise HTTPException(status_code=404, detail="Import task not found")
+    
+    db.delete(task)
+    db.commit()
+    
+    audit_log(
+        db=db,
+        agency_id=agency_id,
+        user_id=user_id,
+        action="import.delete",
+        entity_type="import_task",
+        entity_id=task_id,
+        before_data={"status": task.status}
+    )
+    
+    return {"message": "Import task deleted successfully"}
 
 
 @app.post("/imports/upload")

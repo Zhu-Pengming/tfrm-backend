@@ -3,6 +3,22 @@
     <view class="header-top">
       <view class="header-title">产品资源库</view>
       <view class="header-actions">
+        <view class="view-mode-toggle">
+          <view 
+            class="mode-btn {{viewMode === 'grid' ? 'active' : ''}}"
+            bindtap="switchViewMode"
+            data-mode="grid"
+          >
+            <text class="mode-icon">▦</text>
+          </view>
+          <view 
+            class="mode-btn {{viewMode === 'list' ? 'active' : ''}}"
+            bindtap="switchViewMode"
+            data-mode="list"
+          >
+            <text class="mode-icon">☰</text>
+          </view>
+        </view>
         <view class="search-bar">
           <input 
             class="search-input" 
@@ -13,6 +29,26 @@
           />
           <text class="search-icon">🔍</text>
         </view>
+        <view class="batch-btn" bindtap="toggleBatchMode">
+          <text class="batch-icon">{{isBatchMode ? '✓' : '⚙'}}</text>
+        </view>
+      </view>
+    </view>
+
+    <view wx:if="{{isBatchMode}}" class="batch-controls">
+      <view class="batch-info">
+        <text class="batch-count">已选 {{selectedSkus.length}} 个</text>
+      </view>
+      <view class="batch-actions">
+        <input 
+          class="margin-input" 
+          type="digit"
+          placeholder="毛利率%"
+          value="{{batchMargin}}"
+          bindinput="onMarginInput"
+        />
+        <button class="batch-apply-btn" bindtap="applyBatchMargin">应用调价</button>
+        <button class="batch-cancel-btn" bindtap="cancelBatchMode">取消</button>
       </view>
     </view>
 
@@ -61,13 +97,19 @@
     <view 
       wx:for="{{skuList}}" 
       wx:key="id" 
-      class="sku-card"
+      class="sku-card {{isBatchMode ? 'batch-mode' : ''}}"
     >
+      <view wx:if="{{isBatchMode}}" class="batch-checkbox" catchtap="toggleSkuSelection" data-sku-id="{{item.id}}">
+        <view class="checkbox {{selectedSkus.indexOf(item.id) > -1 ? 'checked' : ''}}">
+          <text wx:if="{{selectedSkus.indexOf(item.id) > -1}}" class="check-icon">✓</text>
+        </view>
+      </view>
+
       <view class="card-header">
         <view class="sku-type-badge type-{{item.sku_type}}">
           {{typeLabels[item.sku_type] || item.sku_type}}
         </view>
-        <view class="sku-provider">{{item.supplier_name || '供应商'}}</view>
+        <view wx:if="{{item.needsAttention}}" class="attention-badge">⚠️</view>
       </view>
 
       <view class="card-body" bindtap="handleViewDetail" data-sku-id="{{item.id}}">
@@ -75,51 +117,43 @@
         
         <view class="sku-location">
           <text class="location-icon">📍</text>
-          <text class="location-text">{{item.destination_city || item.destination_country || '待补充'}}</text>
+          <text class="location-text {{!item.destination_city && !item.destination_country ? 'missing' : ''}}">{{item.destination_city || item.destination_country || '待补充目的地'}}</text>
         </view>
 
         <view class="sku-pricing">
           <view class="price-item">
             <text class="price-label">成本</text>
-            <text class="price-value cost">¥{{item.attrs.daily_cost_price || item.attrs.cost_price || 0}}</text>
+            <text class="price-value cost">¥{{item.costPrice || 0}}</text>
+          </view>
+          <view class="price-item" catchtap="handlePriceEdit" data-sku-id="{{item.id}}" data-current-price="{{item.salesPrice}}">
+            <text class="price-label">销售 {{editingPriceId === item.id ? '' : '✏️'}}</text>
+            <text wx:if="{{editingPriceId !== item.id}}" class="price-value sales">¥{{item.salesPrice || 0}}</text>
+            <input 
+              wx:else
+              class="price-edit-input"
+              type="digit"
+              value="{{item.salesPrice}}"
+              focus="{{true}}"
+              bindblur="handlePriceBlur"
+              bindconfirm="handlePriceConfirm"
+              data-sku-id="{{item.id}}"
+            />
           </view>
           <view class="price-item">
-            <text class="price-label">销售</text>
-            <text class="price-value sales">¥{{item.attrs.daily_sell_price || item.attrs.sell_price || 0}}</text>
+            <text class="price-label">毛利率</text>
+            <text class="price-value margin {{item.profitMargin < 10 ? 'low' : 'good'}}">{{item.profitMargin}}%</text>
           </view>
         </view>
       </view>
 
       <view class="card-footer">
-        <view class="sku-tags" wx:if="{{item.tags && item.tags.length > 0}}">
-          <text wx:for="{{item.tags}}" wx:key="*this" wx:for-item="tag" wx:for-index="tagIdx" class="tag">
-            {{tag}}
-          </text>
-        </view>
-        
-        <view class="card-actions">
-          <button 
-            class="btn-action btn-edit" 
-            catchtap="handleEditSku"
-            data-sku="{{item}}"
-          >
-            编辑
-          </button>
-          <button 
-            class="btn-action btn-delete" 
-            catchtap="handleDeleteSku"
-            data-sku-id="{{item.id}}"
-          >
-            删除
-          </button>
-          <button 
-            class="btn-add" 
-            catchtap="handleAddToBasket"
-            data-sku="{{item}}"
-          >
-            +
-          </button>
-        </view>
+        <button 
+          class="btn-add-primary" 
+          catchtap="handleAddToBasket"
+          data-sku="{{item}}"
+        >
+          加入报价
+        </button>
       </view>
     </view>
   </view>

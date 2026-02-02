@@ -63,17 +63,42 @@
       <view 
         wx:for="{{taskList}}" 
         wx:key="id" 
-        class="task-item"
-        bindtap="handleViewTask"
-        data-task-id="{{item.id}}"
+        class="task-card"
       >
-        <view class="task-header">
-          <text class="task-id">任务 #{{item.id.slice(0, 8)}}</text>
-          <view class="task-status status-{{item.status}}">
-            {{statusText[item.status]}}
+        <view class="task-main" bindtap="handleViewTask" data-task-id="{{item.id}}">
+          <view class="task-left">
+            <view class="task-header">
+              <text class="task-id">任务 #</text>
+              <text class="task-id-value">{{item.id}}</text>
+            </view>
+            <view class="task-time">{{item.created_at}}</view>
+            <view wx:if="{{item.created_sku_id}}" class="task-sku">
+              <text class="sku-icon">✅</text>
+              <text class="sku-text">已生成 SKU</text>
+            </view>
+          </view>
+          <view class="task-right">
+            <view class="task-status status-{{item.status}}">
+              {{statusText[item.status]}}
+            </view>
           </view>
         </view>
-        <view class="task-time">{{item.created_at}}</view>
+        <view class="task-actions">
+          <button 
+            class="action-btn btn-detail" 
+            catchtap="handleViewTask" 
+            data-task-id="{{item.id}}"
+          >
+            👁️ 查看详情
+          </button>
+          <button 
+            class="action-btn btn-delete" 
+            catchtap="handleDeleteTask" 
+            data-task-id="{{item.id}}"
+          >
+            🗑️ 删除
+          </button>
+        </view>
       </view>
     </view>
   </view>

@@ -1,54 +1,153 @@
 <view class="detail-container">
   <view wx:if="{{loading}}" class="loading-state">
+    <view class="loading-spinner"></view>
     <text class="loading-text">加载中...</text>
   </view>
 
-  <view wx:else class="detail-content">
-    <view class="header-section">
-      <text class="sku-name">{{sku.sku_name}}</text>
-      <view class="sku-type-badge type-{{sku.sku_type}}">
-        {{typeLabels[sku.sku_type]}}
+  <scroll-view wx:else scroll-y class="detail-scroll">
+    <!-- 顶部图片预览 -->
+    <view class="hero-image">
+      <image class="hero-img" src="https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&q=80&w=800" mode="aspectFill"></image>
+      <view class="hero-overlay"></view>
+      <view class="hero-content">
+        <view class="hero-badge">
+          <text class="badge-text">{{typeLabels[sku.sku_type]}}</text>
+        </view>
+        <text class="hero-title">{{sku.sku_name}}</text>
+        <view class="hero-location">
+          <text class="location-icon">📍</text>
+          <text class="location-text">{{sku.destination_city || sku.destination_country || '待补充目的地'}}</text>
+        </view>
+      </view>
+      <view wx:if="{{needsAttention}}" class="attention-badge">
+        <text class="attention-icon">⚠️</text>
+        <text class="attention-text">信息待补充</text>
       </view>
     </view>
 
-    <view class="info-section">
-      <view class="info-row">
-        <text class="info-label">SKU ID</text>
-        <text class="info-value">{{sku.id}}</text>
-      </view>
-      <view class="info-row">
-        <text class="info-label">目的地</text>
-        <text class="info-value">{{sku.destination_city}}, {{sku.destination_country}}</text>
-      </view>
-      <view class="info-row">
-        <text class="info-label">状态</text>
-        <view class="status-badge status-{{sku.status}}">
-          {{statusLabels[sku.status]}}
+    <!-- 价格信息卡片 -->
+    <view class="price-card">
+      <view class="price-row">
+        <view class="price-item">
+          <text class="price-label">成本价</text>
+          <view class="price-edit-wrapper" catchtap="handleEditPrice" data-field="cost">
+            <text class="price-value cost">¥{{costPrice || 0}}</text>
+            <text class="edit-hint">✏️</text>
+          </view>
+        </view>
+        <view class="price-divider"></view>
+        <view class="price-item">
+          <text class="price-label">销售价</text>
+          <view class="price-edit-wrapper" catchtap="handleEditPrice" data-field="sales">
+            <text class="price-value sales">¥{{salesPrice || 0}}</text>
+            <text class="edit-hint">✏️</text>
+          </view>
+        </view>
+        <view class="price-divider"></view>
+        <view class="price-item">
+          <text class="price-label">毛利率</text>
+          <text class="price-value margin {{profitMargin < 10 ? 'low' : 'good'}}">{{profitMargin}}%</text>
         </view>
       </view>
     </view>
 
+    <!-- 产品描述 -->
+    <view class="description-section" wx:if="{{sku.description}}">
+      <text class="description-text">{{sku.description}}</text>
+    </view>
+
+    <!-- 体验亮点 -->
+    <view class="highlights-section" wx:if="{{sku.highlights && sku.highlights.length > 0}}">
+      <text class="section-title">✨ 体验亮点</text>
+      <view class="highlights-list">
+        <view wx:for="{{sku.highlights}}" wx:key="*this" class="highlight-item">
+          <text class="highlight-icon">✓</text>
+          <text class="highlight-text">{{item}}</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 费用包含/不含 -->
+    <view class="inclusions-section" wx:if="{{sku.inclusions || sku.exclusions}}">
+      <view class="inclusion-card" wx:if="{{sku.inclusions && sku.inclusions.length > 0}}">
+        <text class="inclusion-title">✓ 费用包含</text>
+        <view class="inclusion-list">
+          <view wx:for="{{sku.inclusions}}" wx:key="*this" class="inclusion-item">
+            <text class="inclusion-bullet">•</text>
+            <text class="inclusion-text">{{item}}</text>
+          </view>
+        </view>
+      </view>
+      <view class="exclusion-card" wx:if="{{sku.exclusions && sku.exclusions.length > 0}}">
+        <text class="exclusion-title">✗ 费用不含</text>
+        <view class="exclusion-list">
+          <view wx:for="{{sku.exclusions}}" wx:key="*this" class="exclusion-item">
+            <text class="exclusion-bullet">•</text>
+            <text class="exclusion-text">{{item}}</text>
+          </view>
+        </view>
+      </view>
+    </view>
+
+    <!-- 服务参数 -->
+    <view class="specs-section" wx:if="{{attrsList.length > 0}}">
+      <text class="section-title">📋 服务参数</text>
+      <view class="specs-grid">
+        <view wx:for="{{attrsList}}" wx:key="key" class="spec-item" catchtap="handleEditField" data-field="{{item.key}}" data-label="{{item.label}}" data-value="{{item.value}}">
+          <text class="spec-icon">{{item.icon || '📌'}}</text>
+          <view class="spec-content">
+            <text class="spec-label">{{item.label}}</text>
+            <text class="spec-value">{{item.value}}</text>
+          </view>
+          <text class="spec-edit">✏️</text>
+        </view>
+      </view>
+    </view>
+
+    <!-- 退款规则 -->
+    <view class="policy-section" wx:if="{{sku.cancellation_policy || sku.cancel_policy}}">
+      <text class="section-title">🔄 退款规则</text>
+      <view class="policy-card">
+        <text class="policy-text">{{sku.cancellation_policy || sku.cancel_policy}}</text>
+      </view>
+    </view>
+
+    <!-- 标签 -->
     <view class="tags-section" wx:if="{{sku.tags && sku.tags.length > 0}}">
-      <text class="section-title">标签</text>
+      <text class="section-title">🏷️ 标签</text>
       <view class="tags-list">
         <text wx:for="{{sku.tags}}" wx:key="*this" class="tag">{{item}}</text>
       </view>
     </view>
 
-    <view class="attrs-section">
-      <text class="section-title">详细信息</text>
-      <view class="attrs-list">
-        <view wx:for="{{attrsList}}" wx:key="key" class="attr-item">
-          <text class="attr-label">{{item.label}}</text>
-          <text class="attr-value">{{item.value}}</text>
-        </view>
+    <!-- 供应商信息 -->
+    <view class="supplier-section" wx:if="{{sku.supplier_name}}">
+      <text class="section-title">🏢 供应商</text>
+      <view class="supplier-card">
+        <text class="supplier-name">{{sku.supplier_name}}</text>
       </view>
     </view>
 
-    <view class="action-section">
-      <button class="btn-add-basket" bindtap="handleAddToBasket">
-        加入报价
-      </button>
+    <!-- SKU ID -->
+    <view class="meta-section">
+      <text class="meta-label">SKU ID</text>
+      <text class="meta-value">{{sku.id}}</text>
     </view>
+
+    <!-- 底部占位 -->
+    <view class="bottom-spacer"></view>
+  </scroll-view>
+
+  <!-- 底部操作栏 -->
+  <view wx:if="{{!loading}}" class="action-bar">
+    <button class="btn-toggle" bindtap="handleTogglePrivacy">
+      {{sku.owner_type === 'private' ? '🔒 转为公开' : '🌐 转为私有'}}
+    </button>
+    <button class="btn-delete" bindtap="handleDelete">
+      🗑️ 删除
+    </button>
+    <button class="btn-primary" bindtap="handleAddToBasket">
+      加入报价
+    </button>
   </view>
 </view>

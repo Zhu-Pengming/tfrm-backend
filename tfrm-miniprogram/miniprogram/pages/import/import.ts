@@ -206,5 +206,39 @@ Page({
 
   handleRefresh() {
     this.loadTaskList()
+  },
+
+  async handleDeleteTask(e: any) {
+    const taskId = e.currentTarget.dataset.taskId
+    
+    const confirmed = await new Promise<boolean>((resolve) => {
+      wx.showModal({
+        title: '确认删除',
+        content: '确定要删除这条导入记录吗？删除后无法恢复。',
+        confirmText: '删除',
+        confirmColor: '#DC2626',
+        success: (res) => resolve(res.confirm)
+      })
+    })
+
+    if (!confirmed) return
+
+    try {
+      wx.showLoading({ title: '删除中...' })
+      await api.deleteImportTask(taskId)
+      wx.hideLoading()
+      wx.showToast({
+        title: '删除成功',
+        icon: 'success'
+      })
+      this.loadTaskList()
+    } catch (error) {
+      wx.hideLoading()
+      console.error('删除任务失败', error)
+      wx.showToast({
+        title: '删除失败',
+        icon: 'error'
+      })
+    }
   }
 })

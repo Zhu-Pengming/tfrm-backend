@@ -32,7 +32,11 @@ Page({
     loading: false,
     basketCount: 0,
     isPrivate: true,
-    viewMode: 'grid' as 'grid' | 'list'
+    viewMode: 'grid' as 'grid' | 'list',
+    isBatchMode: false,
+    selectedSkus: [] as string[],
+    batchMargin: 20,
+    editingPriceId: null as string | null
   },
 
   onShow() {
@@ -95,7 +99,27 @@ Page({
         const skuIsPrivate = sku.owner_type === 'private'
         return skuIsPrivate === isPrivate
       })
-      this.setData({ skuList: filteredSkus })
+      
+      const enrichedSkus = filteredSkus.map((sku: any) => {
+        const attrs = sku.attrs || {}
+        const costPrice = attrs.daily_cost_price || attrs.cost_price || attrs.per_person_price || attrs.adult_price || 0
+        const salesPrice = attrs.daily_sell_price || attrs.sell_price || attrs.per_person_price || attrs.adult_price || costPrice
+        const profitMargin = salesPrice > 0 ? (((salesPrice - costPrice) / salesPrice) * 100).toFixed(1) : 0
+        
+        const needsAttention = !sku.destination_city && !sku.destination_country || 
+                              (costPrice === 0 && salesPrice === 0) || 
+                              !sku.cancellation_policy && !sku.cancel_policy
+        
+        return {
+          ...sku,
+          costPrice,
+          salesPrice,
+          profitMargin,
+          needsAttention
+        }
+      })
+      
+      this.setData({ skuList: enrichedSkus })
     } catch (error) {
       console.error('加载SKU列表失败', error)
     } finally {
@@ -136,6 +160,166 @@ Page({
     wx.navigateTo({
       url: `/pages/sku-detail/sku-detail?skuId=${sku.id}&mode=edit`
     })
+  },
+
+  toggleBatchMode() {
+    this.setData({ 
+      isBatchMode: !this.data.isBatchMode,
+      selectedSkus: []
+    })
+  },
+
+  cancelBatchMode() {
+    this.setData({ 
+      isBatchMode: false,
+      selectedSkus: []
+    })
+  },
+
+  toggleSkuSelection(e: any) {
+    const skuId = e.currentTarget.dataset.skuId
+    const { selectedSkus } = this.data
+    const index = selectedSkus.indexOf(skuId)
+    
+    if (index > -1) {
+      selectedSkus.splice(index, 1)
+    } else {
+      selectedSkus.push(skuId)
+    }
+    
+    this.setData({ selectedSkus })
+  },
+
+  onMarginInput(e: any) {
+    this.setData({ batchMargin: parseFloat(e.detail.value) || 0 })
+  },
+
+  async applyBatchMargin() {
+    const { selectedSkus, batchMargin, skuList } = this.data
+    
+    if (selectedSkus.length === 0) {
+      wx.showToast({
+        title: '请先选择SKU',
+        icon: 'none'
+      })
+      return
+    }
+
+    wx.showLoading({ title: '调价中...' })
+
+    try {
+      for (const skuId of selectedSkus) {
+        const sku = skuList.find((s: any) => s.id === skuId)
+        if (!sku) continue
+        
+        const newSalesPrice = Math.round(sku.costPrice / (1 - batchMargin / 100))
+        
+        await api.updateSku(skuId, {
+          attrs: {
+            ...sku.attrs,
+            daily_sell_price: newSalesPrice,
+            sell_price: newSalesPrice
+          }
+        })
+      }
+      
+      wx.hideLoading()
+      wx.showToast({
+        title: '调价成功',
+        icon: 'success'
+      })
+      
+      this.setData({ 
+        isBatchMode: false,
+        selectedSkus: []
+      })
+      this.loadSkus()
+    } catch (error) {
+      wx.hideLoading()
+      console.error('批量调价失败', error)
+      wx.showToast({
+        title: '调价失败',
+        icon: 'error'
+      })
+    }
+  },
+
+  handlePriceEdit(e: any) {
+    const skuId = e.currentTarget.dataset.skuId
+    this.setData({ editingPriceId: skuId })
+  },
+
+  handlePriceBlur() {
+    this.setData({ editingPriceId: null })
+  },
+
+  async handlePriceConfirm(e: any) {
+    const skuId = e.currentTarget.dataset.skuId
+    const newPrice = parseFloat(e.detail.value)
+    
+    if (!newPrice || newPrice <= 0) {
+      wx.showToast({
+        title: '价格无效',
+        icon: 'none'
+      })
+      return
+    }
+
+    try {
+      const sku = this.data.skuList.find((s: any) => s.id === skuId)
+      if (!sku) return
+      
+      await api.updateSku(skuId, {
+        attrs: {
+          ...sku.attrs,
+          daily_sell_price: newPrice,
+          sell_price: newPrice
+        }
+      })
+      
+      wx.showToast({
+        title: '价格已更新',
+        icon: 'success'
+      })
+      
+      this.setData({ editingPriceId: null })
+      this.loadSkus()
+    } catch (error) {
+      console.error('更新价格失败', error)
+      wx.showToast({
+        title: '更新失败',
+        icon: 'error'
+      })
+    }
+  },
+
+  async handleTogglePrivacy(e: any) {
+    const skuId = e.currentTarget.dataset.skuId
+    const sku = this.data.skuList.find((s: any) => s.id === skuId)
+    if (!sku) return
+
+    const newOwnerType = sku.owner_type === 'private' ? 'public' : 'private'
+    const newVisibilityScope = newOwnerType === 'public' ? 'all' : 'private'
+
+    try {
+      await api.updateSku(skuId, {
+        owner_type: newOwnerType,
+        visibility_scope: newVisibilityScope
+      })
+      
+      wx.showToast({
+        title: newOwnerType === 'public' ? '已移至公共池' : '已移至私有库',
+        icon: 'success'
+      })
+      
+      this.loadSkus()
+    } catch (error) {
+      console.error('切换隐私状态失败', error)
+      wx.showToast({
+        title: '操作失败',
+        icon: 'error'
+      })
+    }
   },
 
   async handleDeleteSku(e: any) {

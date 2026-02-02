@@ -10,7 +10,13 @@ const SKU_TYPES = [
 
   { value: 'guide', label: '导游' },
 
-  { value: 'transport', label: '用车' }
+  { value: 'transport', label: '用车' },
+
+  { value: 'itinerary', label: '行程' },
+
+  { value: 'restaurant', label: '餐厅' },
+
+  { value: 'activity', label: '活动' }
 
 ]
 
@@ -24,6 +30,8 @@ const FIELD_LABELS: any = {
 
   destination_country: '目的地国家',
 
+  // 酒店相关
+
   hotel_name: '酒店名称',
 
   room_type_name: '房型',
@@ -34,17 +42,63 @@ const FIELD_LABELS: any = {
 
   address: '地址',
 
+  // 门票相关
+
   attraction_name: '景点名称',
 
   ticket_type: '票种',
+
+  // 导游相关
 
   guide_name: '导游姓名',
 
   language: '语言',
 
+  // 用车相关
+
   vehicle_type: '车型',
 
-  capacity: '载客量'
+  capacity: '载客量',
+
+  // 行程相关
+
+  itinerary_name: '行程名称',
+
+  days: '天数',
+
+  nights: '晚数',
+
+  departure_dates: '出发日期',
+
+  highlights: '行程亮点',
+
+  included_services: '包含服务',
+
+  booking_notes: '预订说明',
+
+  supplier_name: '供应商',
+
+  // 餐厅相关
+
+  restaurant_name: '餐厅名称',
+
+  cuisine_type: '菜系',
+
+  meal_types: '餐型',
+
+  per_person_price: '人均价格',
+
+  // 活动相关
+
+  activity_name: '活动名称',
+
+  category: '类别',
+
+  duration_hours: '时长',
+
+  meeting_point: '集合地点',
+
+  included_items: '包含项目'
 
 }
 
@@ -130,6 +184,24 @@ Page({
 
         this.processExtractedFields(task.extracted_fields, task.evidence)
 
+        
+
+        // Auto-select SKU type based on AI extraction
+
+        if (task.parsed_result && task.parsed_result.sku_type) {
+
+          const skuType = task.parsed_result.sku_type
+
+          const typeIndex = SKU_TYPES.findIndex(t => t.value === skuType)
+
+          if (typeIndex >= 0) {
+
+            this.setData({ selectedTypeIndex: typeIndex })
+
+          }
+
+        }
+
       }
 
     } catch (error) {
@@ -188,25 +260,37 @@ Page({
 
   processExtractedFields(fields: any, evidence: any) {
 
+    // 格式化字段值的函数
+    const formatValue = (value: any): string => {
+      if (value === null || value === undefined) {
+        return ''
+      }
+      if (Array.isArray(value)) {
+        // 如果是数组，检查是否是对象数组
+        if (value.length > 0 && typeof value[0] === 'object') {
+          // 对象数组，尝试提取关键信息
+          return value.map(item => {
+            if (item.date && item.price) {
+              return `${item.date}: ¥${item.price}`
+            }
+            return JSON.stringify(item)
+          }).join('\n')
+        }
+        // 简单数组，用顿号分隔
+        return value.join('、')
+      }
+      if (typeof value === 'object') {
+        // 对象类型，格式化显示
+        return JSON.stringify(value, null, 2)
+      }
+      return String(value)
+    }
+
     const fieldList = Object.keys(fields).map(key => {
 
       const fieldValue = fields[key]
 
-      let displayValue = ''
-
-      if (fieldValue === null || fieldValue === undefined) {
-
-        displayValue = ''
-
-      } else if (typeof fieldValue === 'object') {
-
-        displayValue = JSON.stringify(fieldValue, null, 2)
-
-      } else {
-
-        displayValue = String(fieldValue)
-
-      }
+      const displayValue = formatValue(fieldValue)
 
       return {
 

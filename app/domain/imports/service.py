@@ -92,6 +92,25 @@ class ImportService:
         # 准备attrs，为必需字段添加默认值
         attrs = confirm_data.extracted_fields.copy()
         
+        # 定义各类型的特定字段
+        type_specific_fields = {
+            'hotel': ['hotel_name', 'room_type_name', 'address', 'daily_cost_price', 'daily_sell_price'],
+            'itinerary': ['itinerary_name', 'days', 'nights', 'departure_dates', 'highlights', 'included_services', 'booking_notes'],
+            'ticket': ['attraction_name', 'ticket_type'],
+            'guide': ['guide_name', 'language'],
+            'transport': ['vehicle_type', 'capacity'],
+            'restaurant': ['restaurant_name', 'cuisine_type', 'meal_types', 'per_person_price'],
+            'activity': ['activity_name', 'category', 'duration_hours', 'meeting_point', 'included_items']
+        }
+        
+        # 清理其他类型的特定字段
+        current_type_fields = type_specific_fields.get(confirm_data.sku_type, [])
+        for type_name, fields in type_specific_fields.items():
+            if type_name != confirm_data.sku_type:
+                for field in fields:
+                    if field in attrs and field not in current_type_fields:
+                        del attrs[field]
+        
         # 为酒店类型添加必需字段的默认值
         if confirm_data.sku_type == "hotel":
             if "hotel_name" not in attrs:
@@ -102,6 +121,18 @@ class ImportService:
                 # 尝试从目的地城市构建地址
                 city = confirm_data.extracted_fields.get("destination_city", "")
                 attrs["address"] = f"{city}" if city else "未指定地址"
+        
+        # 为行程类型添加必需字段的默认值
+        elif confirm_data.sku_type == "itinerary":
+            if "itinerary_name" not in attrs:
+                attrs["itinerary_name"] = confirm_data.extracted_fields.get("sku_name", "未命名行程")
+            # 确保数组字段是列表类型
+            if "departure_dates" in attrs and isinstance(attrs["departure_dates"], str):
+                attrs["departure_dates"] = [attrs["departure_dates"]]
+            if "highlights" in attrs and isinstance(attrs["highlights"], str):
+                attrs["highlights"] = [attrs["highlights"]]
+            if "included_services" in attrs and isinstance(attrs["included_services"], str):
+                attrs["included_services"] = [attrs["included_services"]]
         
         tags = confirm_data.extracted_fields.get("tags", [])
         if isinstance(tags, str):
@@ -127,9 +158,6 @@ class ImportService:
         
         sku = SKUService.create_sku(db, agency_id, user_id, sku_create)
         
-        # Auto-publish to public resource repository on confirmation
-        SKUService.publish_sku(db, agency_id, user_id, sku.id, visibility_scope="all")
-        
         task.status = ImportStatus.CONFIRMED
         task.created_sku_id = sku.id
         task.updated_at = datetime.utcnow()
@@ -142,7 +170,7 @@ class ImportService:
             action="import.confirm",
             entity_type="import_task",
             entity_id=task.id,
-            after_data={"created_sku_id": sku.id, "published": True}
+            after_data={"created_sku_id": sku.id}
         )
         
         return sku.id
