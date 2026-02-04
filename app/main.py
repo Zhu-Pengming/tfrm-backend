@@ -243,6 +243,85 @@ async def test_form(
     }
 
 
+@app.post("/skus/batch-pricing")
+def batch_update_pricing(
+    pricing_data: BatchPricingUpdate,
+    current_user: Tuple[str, str, str] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Batch update SKU pricing with margin/factor/amount"""
+    user_id, agency_id, username = current_user
+    
+    updated_count = SKUService.batch_update_pricing(
+        db, agency_id, user_id,
+        pricing_data.sku_ids,
+        pricing_data.margin_percentage,
+        pricing_data.multiply_factor,
+        float(pricing_data.add_amount) if pricing_data.add_amount else None
+    )
+    
+    return {"message": f"Updated {updated_count} SKUs", "count": updated_count}
+
+
+@app.post("/skus/batch-update")
+def batch_update_skus(
+    update_data: BatchSKUUpdate,
+    current_user: Tuple[str, str, str] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Batch update SKU fields"""
+    user_id, agency_id, username = current_user
+    
+    updates = update_data.model_dump(exclude={'sku_ids'}, exclude_none=True)
+    updated_count = SKUService.batch_update_skus(db, agency_id, user_id, update_data.sku_ids, updates)
+    
+    return {"message": f"Updated {updated_count} SKUs", "count": updated_count}
+
+
+@app.post("/skus/batch-delete")
+def batch_delete_skus(
+    delete_data: BatchSKUDelete,
+    current_user: Tuple[str, str, str] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Batch delete SKUs"""
+    user_id, agency_id, username = current_user
+    
+    deleted_count = SKUService.batch_delete_skus(db, agency_id, user_id, delete_data.sku_ids)
+    
+    return {"message": f"Deleted {deleted_count} SKUs", "count": deleted_count}
+
+
+@app.post("/skus/pull/{public_sku_id}", response_model=SKUResponse)
+def pull_public_sku(
+    public_sku_id: str,
+    apply_factor: bool = True,
+    current_user: Tuple[str, str, str] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    user_id, agency_id, username = current_user
+    sku = PricingService.pull_public_sku(db, agency_id, user_id, public_sku_id, apply_factor)
+    if not sku:
+        raise HTTPException(status_code=404, detail="Public SKU not found or not accessible")
+    return sku
+
+
+@app.post("/skus/{sku_id}/publish", response_model=SKUResponse)
+def publish_sku(
+    sku_id: str,
+    visibility_scope: str = "all",
+    partner_whitelist: Optional[List[str]] = None,
+    current_user: Tuple[str, str, str] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Publish a private SKU to the public resource repository"""
+    user_id, agency_id, username = current_user
+    sku = SKUService.publish_sku(db, agency_id, user_id, sku_id, visibility_scope, partner_whitelist)
+    if not sku:
+        raise HTTPException(status_code=404, detail="SKU not found")
+    return sku
+
+
 @app.post("/skus", response_model=SKUResponse)
 def create_sku(
     sku_data: SKUCreate,
@@ -320,6 +399,24 @@ def delete_sku(
     if not success:
         raise HTTPException(status_code=404, detail="SKU not found")
     return {"message": "SKU deleted successfully"}
+
+
+@app.put("/skus/{sku_id}/price-calendar", response_model=SKUResponse)
+def update_price_calendar(
+    sku_id: str,
+    calendar_data: PriceCalendarUpdate,
+    current_user: Tuple[str, str, str] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """Update price calendar for a SKU"""
+    user_id, agency_id, username = current_user
+    
+    calendar_items = [item.model_dump() for item in calendar_data.items]
+    sku = SKUService.update_price_calendar(db, agency_id, user_id, sku_id, calendar_items)
+    
+    if not sku:
+        raise HTTPException(status_code=404, detail="SKU not found")
+    return sku
 
 
 @app.get("/skus", response_model=List[SKUResponse])
@@ -679,101 +776,6 @@ def list_quotations(
     return quotations
 
 
-@app.post("/skus/pull/{public_sku_id}", response_model=SKUResponse)
-def pull_public_sku(
-    public_sku_id: str,
-    apply_factor: bool = True,
-    current_user: Tuple[str, str, str] = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    user_id, agency_id, username = current_user
-    sku = PricingService.pull_public_sku(db, agency_id, user_id, public_sku_id, apply_factor)
-    if not sku:
-        raise HTTPException(status_code=404, detail="Public SKU not found or not accessible")
-    return sku
-
-
-@app.post("/skus/{sku_id}/publish", response_model=SKUResponse)
-def publish_sku(
-    sku_id: str,
-    visibility_scope: str = "all",
-    partner_whitelist: Optional[List[str]] = None,
-    current_user: Tuple[str, str, str] = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Publish a private SKU to the public resource repository"""
-    user_id, agency_id, username = current_user
-    sku = SKUService.publish_sku(db, agency_id, user_id, sku_id, visibility_scope, partner_whitelist)
-    if not sku:
-        raise HTTPException(status_code=404, detail="SKU not found")
-    return sku
-
-
-@app.put("/skus/{sku_id}/price-calendar", response_model=SKUResponse)
-def update_price_calendar(
-    sku_id: str,
-    calendar_data: PriceCalendarUpdate,
-    current_user: Tuple[str, str, str] = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Update price calendar for a SKU"""
-    user_id, agency_id, username = current_user
-    
-    calendar_items = [item.model_dump() for item in calendar_data.items]
-    sku = SKUService.update_price_calendar(db, agency_id, user_id, sku_id, calendar_items)
-    
-    if not sku:
-        raise HTTPException(status_code=404, detail="SKU not found")
-    return sku
-
-
-@app.post("/skus/batch-pricing")
-def batch_update_pricing(
-    pricing_data: BatchPricingUpdate,
-    current_user: Tuple[str, str, str] = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Batch update SKU pricing with margin/factor/amount"""
-    user_id, agency_id, username = current_user
-    
-    updated_count = SKUService.batch_update_pricing(
-        db, agency_id, user_id,
-        pricing_data.sku_ids,
-        pricing_data.margin_percentage,
-        pricing_data.multiply_factor,
-        float(pricing_data.add_amount) if pricing_data.add_amount else None
-    )
-    
-    return {"message": f"Updated {updated_count} SKUs", "count": updated_count}
-
-
-@app.post("/skus/batch-update")
-def batch_update_skus(
-    update_data: BatchSKUUpdate,
-    current_user: Tuple[str, str, str] = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Batch update SKU fields"""
-    user_id, agency_id, username = current_user
-    
-    updates = update_data.model_dump(exclude={'sku_ids'}, exclude_none=True)
-    updated_count = SKUService.batch_update_skus(db, agency_id, user_id, update_data.sku_ids, updates)
-    
-    return {"message": f"Updated {updated_count} SKUs", "count": updated_count}
-
-
-@app.post("/skus/batch-delete")
-def batch_delete_skus(
-    delete_data: BatchSKUDelete,
-    current_user: Tuple[str, str, str] = Depends(get_current_user),
-    db: Session = Depends(get_db)
-):
-    """Batch delete SKUs"""
-    user_id, agency_id, username = current_user
-    
-    deleted_count = SKUService.batch_delete_skus(db, agency_id, user_id, delete_data.sku_ids)
-    
-    return {"message": f"Deleted {deleted_count} SKUs", "count": deleted_count}
 
 
 @app.post("/upload")

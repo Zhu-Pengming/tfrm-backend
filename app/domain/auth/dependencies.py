@@ -79,12 +79,8 @@ async def get_current_user_optional(
     
     # 如果没有提供token，使用默认测试用户
     if credentials is None:
-        logger.warning("No authentication provided for optional auth dependency")
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail="Authentication required",
-            headers={"WWW-Authenticate": "Bearer"},
-        )
+        logger.warning("No authentication provided for optional auth dependency - using default user")
+        return ("DEFAULT_USER", "DEFAULT_AGENCY", "anonymous")
     
     # 如果提供了token，正常验证
     token = credentials.credentials
