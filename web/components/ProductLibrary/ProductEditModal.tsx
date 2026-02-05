@@ -153,7 +153,13 @@ const ProductEditModal: React.FC<ProductEditModalProps> = ({ sku, onSave, onClos
       newAttrs.sell_price = sellPrice;
     }
     
+    console.log('newAttrs before assigning to payload:', newAttrs);
+    console.log('Is newAttrs empty?', Object.keys(newAttrs).length === 0);
+    
     updatePayload.attrs = newAttrs;
+    
+    console.log('updatePayload.attrs after assignment:', updatePayload.attrs);
+    console.log('Full updatePayload:', JSON.stringify(updatePayload, null, 2));
     
     console.log('Update payload:', {
       skuType,
