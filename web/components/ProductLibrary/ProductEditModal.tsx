@@ -93,7 +93,10 @@ const ProductEditModal: React.FC<ProductEditModalProps> = ({ sku, onSave, onClos
       cancellationPolicy: formData.cancellationPolicy
     };
     
-    const updatePayload = {
+    const costPrice = Number(formData.price);
+    const sellPrice = Number(formData.salesPrice);
+    
+    const updatePayload: any = {
       sku_name: formData.name,
       description: formData.description,
       tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean),
@@ -103,6 +106,28 @@ const ProductEditModal: React.FC<ProductEditModalProps> = ({ sku, onSave, onClos
       cancellation_policy: formData.cancellationPolicy,
       supplier_name: formData.provider
     };
+    
+    const skuType = sku.backendType || sku.category?.toLowerCase();
+    const attrs = sku.categoryAttributes || {};
+    
+    const newAttrs = { ...attrs };
+    
+    if (skuType === 'hotel') {
+      newAttrs.daily_cost_price = costPrice;
+      newAttrs.daily_sell_price = sellPrice;
+    } else if (skuType === 'guide') {
+      newAttrs.daily_cost_price = costPrice;
+      newAttrs.daily_sell_price = sellPrice;
+    } else if (skuType === 'restaurant') {
+      newAttrs.per_person_price = costPrice;
+    } else if (skuType === 'itinerary') {
+      newAttrs.adult_price = costPrice;
+    } else {
+      newAttrs.cost_price = costPrice;
+      newAttrs.sell_price = sellPrice;
+    }
+    
+    updatePayload.attrs = newAttrs;
     
     onSave(updatedSku, updatePayload);
   };
