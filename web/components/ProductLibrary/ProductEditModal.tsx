@@ -34,6 +34,21 @@ const ProductEditModal: React.FC<ProductEditModalProps> = ({ sku, onSave, onClos
   const [showAddVendor, setShowAddVendor] = useState(false);
   const [newVendor, setNewVendor] = useState({ name: '', contact: '', phone: '', email: '' });
 
+  const handlePriceInput = (value: string, field: 'price' | 'salesPrice') => {
+    const numValue = value.replace(/[^\d]/g, '');
+    const cleanValue = numValue ? parseInt(numValue, 10) : 0;
+    
+    if (field === 'price') {
+      setFormData({ ...formData, price: cleanValue });
+      if (cleanValue > 0 && formData.salesPrice === 0) {
+        const suggestedSalesPrice = Math.round(cleanValue * 1.3);
+        setFormData(prev => ({ ...prev, price: cleanValue, salesPrice: suggestedSalesPrice }));
+      }
+    } else {
+      setFormData({ ...formData, salesPrice: cleanValue });
+    }
+  };
+
   useEffect(() => {
     loadVendors();
   }, []);
@@ -235,9 +250,11 @@ const ProductEditModal: React.FC<ProductEditModalProps> = ({ sku, onSave, onClos
                   成本价 (¥)
                 </label>
                 <input
-                  type="number"
-                  value={formData.price}
-                  onChange={(e) => setFormData({ ...formData, price: Number(e.target.value) })}
+                  type="text"
+                  inputMode="numeric"
+                  value={formData.price || ''}
+                  onChange={(e) => handlePriceInput(e.target.value, 'price')}
+                  placeholder="输入成本价"
                   className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-100 outline-none"
                   required
                 />
@@ -247,9 +264,11 @@ const ProductEditModal: React.FC<ProductEditModalProps> = ({ sku, onSave, onClos
                   销售价 (¥)
                 </label>
                 <input
-                  type="number"
-                  value={formData.salesPrice}
-                  onChange={(e) => setFormData({ ...formData, salesPrice: Number(e.target.value) })}
+                  type="text"
+                  inputMode="numeric"
+                  value={formData.salesPrice || ''}
+                  onChange={(e) => handlePriceInput(e.target.value, 'salesPrice')}
+                  placeholder="输入销售价"
                   className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-100 outline-none"
                   required
                 />
