@@ -537,10 +537,22 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({ onAddToQuotation, onNav
   };
 
   const handleSaveEdit = async (updatedSku: SKU, updatePayload?: any) => {
+    console.log('=== handleSaveEdit called ===');
+    console.log('updatedSku:', updatedSku);
+    console.log('updatePayload:', updatePayload);
+    
     try {
       const { skuAPI } = await import('../../services/api');
       const payload = updatePayload || updatedSku;
-      await skuAPI.update(updatedSku.id, payload);
+      
+      console.log('Sending to API:', {
+        skuId: updatedSku.id,
+        payload: payload
+      });
+      
+      const response = await skuAPI.update(updatedSku.id, payload);
+      console.log('API response:', response);
+      
       setSkuList(prev => prev.map(sku => 
         sku.id === updatedSku.id ? updatedSku : sku
       ));
