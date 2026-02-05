@@ -3,7 +3,7 @@ import { SKU } from '../../types';
 
 interface ProductEditModalProps {
   sku: SKU;
-  onSave: (updatedSku: SKU) => void;
+  onSave: (updatedSku: SKU, updatePayload?: any) => void;
   onClose: () => void;
 }
 
@@ -93,7 +93,18 @@ const ProductEditModal: React.FC<ProductEditModalProps> = ({ sku, onSave, onClos
       cancellationPolicy: formData.cancellationPolicy
     };
     
-    onSave(updatedSku);
+    const updatePayload = {
+      sku_name: formData.name,
+      description: formData.description,
+      tags: formData.tags.split(',').map(t => t.trim()).filter(Boolean),
+      highlights: formData.highlights.split('\n').filter(Boolean),
+      inclusions: formData.inclusions.split('\n').filter(Boolean),
+      exclusions: formData.exclusions.split('\n').filter(Boolean),
+      cancellation_policy: formData.cancellationPolicy,
+      supplier_name: formData.provider
+    };
+    
+    onSave(updatedSku, updatePayload);
   };
 
   return (

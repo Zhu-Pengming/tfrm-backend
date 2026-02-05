@@ -532,10 +532,11 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({ onAddToQuotation, onNav
     setEditingSku(sku);
   };
 
-  const handleSaveEdit = async (updatedSku: SKU) => {
+  const handleSaveEdit = async (updatedSku: SKU, updatePayload?: any) => {
     try {
       const { skuAPI } = await import('../../services/api');
-      await skuAPI.update(updatedSku.id, updatedSku);
+      const payload = updatePayload || updatedSku;
+      await skuAPI.update(updatedSku.id, payload);
       setSkuList(prev => prev.map(sku => 
         sku.id === updatedSku.id ? updatedSku : sku
       ));
