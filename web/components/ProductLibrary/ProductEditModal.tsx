@@ -134,7 +134,9 @@ const ProductEditModal: React.FC<ProductEditModalProps> = ({ sku, onSave, onClos
       return;
     }
     
+    console.log('SKU rawAttrs:', sku.rawAttrs);
     const newAttrs: any = { ...(sku.rawAttrs || {}) };
+    console.log('newAttrs after spread:', newAttrs);
     
     if (skuType === 'hotel') {
       newAttrs.daily_cost_price = costPrice;
