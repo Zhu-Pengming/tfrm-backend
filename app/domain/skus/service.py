@@ -98,15 +98,17 @@ class SKUService:
         
         update_dict = sku_data.model_dump(exclude_none=True)
         
-        print(f"=== SKU Update Debug ===")
-        print(f"SKU ID: {sku_id}")
-        print(f"SKU Type: {sku.sku_type}")
-        print(f"Received update_dict: {update_dict}")
+        import logging
+        logger = logging.getLogger(__name__)
+        logger.info(f"=== SKU Update Debug ===")
+        logger.info(f"SKU ID: {sku_id}")
+        logger.info(f"SKU Type: {sku.sku_type}")
+        logger.info(f"Received update_dict: {update_dict}")
         
         if "attrs" in update_dict:
-            print(f"Original attrs: {update_dict['attrs']}")
+            logger.info(f"Original attrs: {update_dict['attrs']}")
             validated_attrs = validate_attrs(sku.sku_type, update_dict["attrs"])
-            print(f"Validated attrs: {validated_attrs}")
+            logger.info(f"Validated attrs: {validated_attrs}")
             update_dict["attrs"] = validated_attrs
         if "price_mode" in update_dict and update_dict["price_mode"]:
             # Enum to raw value
