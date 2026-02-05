@@ -90,8 +90,8 @@ const ProductEditModal: React.FC<ProductEditModalProps> = ({ sku, onSave, onClos
     v.name.toLowerCase().includes(formData.provider.toLowerCase())
   );
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
+  const handleSubmit = (e?: React.FormEvent | React.MouseEvent) => {
+    e?.preventDefault();
     
     console.log('=== ProductEditModal handleSubmit called ===');
     console.log('Form data:', formData);
