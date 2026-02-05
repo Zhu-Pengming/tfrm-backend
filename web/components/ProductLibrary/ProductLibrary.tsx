@@ -553,11 +553,11 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({ onAddToQuotation, onNav
       const response = await skuAPI.update(updatedSku.id, payload);
       console.log('API response:', response);
       
-      setSkuList(prev => prev.map(sku => 
-        sku.id === updatedSku.id ? updatedSku : sku
-      ));
       setEditingSku(null);
       alert('商品已更新');
+      
+      // 刷新页面以显示最新数据
+      window.location.reload();
     } catch (error) {
       console.error('Failed to update SKU:', error);
       alert('更新失败，请重试');
