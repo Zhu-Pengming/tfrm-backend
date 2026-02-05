@@ -387,7 +387,11 @@ const ProductEditModal: React.FC<ProductEditModalProps> = ({ sku, onSave, onClos
             取消
           </button>
           <button
-            onClick={handleSubmit}
+            onClick={(e) => {
+              console.log('Button clicked!');
+              alert('按钮被点击了！');
+              handleSubmit(e);
+            }}
             className="px-8 py-3 bg-blue-600 text-white rounded-xl font-bold hover:bg-blue-700 transition-colors shadow-lg shadow-blue-100"
           >
             保存修改
