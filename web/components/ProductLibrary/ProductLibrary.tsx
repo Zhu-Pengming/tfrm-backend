@@ -300,7 +300,8 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({ onAddToQuotation, onNav
                 exclusions: exclusionsFallback,
                 cancellationPolicy: sku.cancellation_policy || sku.cancel_policy || 'See supplier notes',
                 categoryAttributes: normalizedAttrs,
-                needsAttention
+                needsAttention,
+                rawAttrs: attrs
               } as SKU;
             });
 
@@ -388,7 +389,8 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({ onAddToQuotation, onNav
               exclusions: exclusionsFallback,
               cancellationPolicy: sku.cancellation_policy || sku.cancel_policy || 'See supplier notes',
               categoryAttributes: normalizedAttrs,
-              needsAttention
+              needsAttention,
+              rawAttrs: attrs
             };
             
             // Create a virtual product for this standalone SKU
