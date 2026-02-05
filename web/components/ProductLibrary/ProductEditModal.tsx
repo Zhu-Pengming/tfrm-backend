@@ -115,6 +115,7 @@ const ProductEditModal: React.FC<ProductEditModalProps> = ({ sku, onSave, onClos
     const costPrice = Number(formData.price);
     const sellPrice = Number(formData.salesPrice);
     
+    // 构建基础 payload
     const updatePayload: any = {
       sku_name: formData.name,
       description: formData.description,
@@ -123,52 +124,14 @@ const ProductEditModal: React.FC<ProductEditModalProps> = ({ sku, onSave, onClos
       inclusions: formData.inclusions.split('\n').filter(Boolean),
       exclusions: formData.exclusions.split('\n').filter(Boolean),
       cancellation_policy: formData.cancellationPolicy,
-      supplier_name: formData.provider
+      supplier_name: formData.provider,
+      // 直接添加 attrs，使用原始数据或空对象
+      attrs: {
+        ...(sku.rawAttrs || {}),
+        cost_price: costPrice,
+        sell_price: sellPrice
+      }
     };
-    
-    const skuType = sku.backendType;
-    
-    if (!skuType) {
-      console.error('SKU backendType is missing:', sku);
-      alert('错误：无法确定产品类型，请刷新页面重试');
-      return;
-    }
-    
-    console.log('SKU rawAttrs:', sku.rawAttrs);
-    const newAttrs: any = { ...(sku.rawAttrs || {}) };
-    console.log('newAttrs after spread:', newAttrs);
-    
-    if (skuType === 'hotel') {
-      newAttrs.daily_cost_price = costPrice;
-      newAttrs.daily_sell_price = sellPrice;
-    } else if (skuType === 'guide') {
-      newAttrs.daily_cost_price = costPrice;
-      newAttrs.daily_sell_price = sellPrice;
-    } else if (skuType === 'restaurant') {
-      newAttrs.per_person_price = costPrice;
-    } else if (skuType === 'itinerary') {
-      newAttrs.adult_price = costPrice;
-    } else {
-      newAttrs.cost_price = costPrice;
-      newAttrs.sell_price = sellPrice;
-    }
-    
-    console.log('newAttrs before assigning to payload:', newAttrs);
-    console.log('Is newAttrs empty?', Object.keys(newAttrs).length === 0);
-    
-    updatePayload.attrs = newAttrs;
-    
-    console.log('updatePayload.attrs after assignment:', updatePayload.attrs);
-    console.log('Full updatePayload:', JSON.stringify(updatePayload, null, 2));
-    
-    console.log('Update payload:', {
-      skuType,
-      costPrice,
-      sellPrice,
-      originalAttrs: sku.rawAttrs,
-      updatedAttrs: newAttrs,
-      fullPayload: updatePayload
-    });
     
     onSave(updatedSku, updatePayload);
   };
