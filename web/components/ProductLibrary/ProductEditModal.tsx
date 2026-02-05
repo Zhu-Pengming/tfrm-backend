@@ -122,10 +122,15 @@ const ProductEditModal: React.FC<ProductEditModalProps> = ({ sku, onSave, onClos
       supplier_name: formData.provider
     };
     
-    const skuType = sku.backendType || sku.category?.toLowerCase();
-    const attrs = sku.categoryAttributes || {};
+    const skuType = sku.backendType;
     
-    const newAttrs = { ...attrs };
+    if (!skuType) {
+      console.error('SKU backendType is missing:', sku);
+      alert('错误：无法确定产品类型，请刷新页面重试');
+      return;
+    }
+    
+    const newAttrs: any = {};
     
     if (skuType === 'hotel') {
       newAttrs.daily_cost_price = costPrice;
@@ -143,6 +148,14 @@ const ProductEditModal: React.FC<ProductEditModalProps> = ({ sku, onSave, onClos
     }
     
     updatePayload.attrs = newAttrs;
+    
+    console.log('Update payload:', {
+      skuType,
+      costPrice,
+      sellPrice,
+      attrs: newAttrs,
+      fullPayload: updatePayload
+    });
     
     onSave(updatedSku, updatePayload);
   };

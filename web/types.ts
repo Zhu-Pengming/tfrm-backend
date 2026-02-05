@@ -13,6 +13,7 @@ export interface SKU {
   productTitle?: string;
   name: string;
   category: Category;
+  backendType?: string;
   price: number;
   salesPrice: number;
   provider: string;
@@ -27,14 +28,17 @@ export interface SKU {
     cancellation?: boolean;
   };
 
-  // 1. 体验层（GetYourGuide 标准内容�?  description: string;
+  // 1. 体验层（GetYourGuide 标准内容）
+  description: string;
   highlights: string[];
 
-  // 2. 费用与政�?  inclusions: string[];
+  // 2. 费用与政策
+  inclusions: string[];
   exclusions: string[];
   cancellationPolicy: string;
 
-  // 3. 行业特有参数（模板化 details�?  categoryAttributes: {
+  // 3. 行业特有参数（模板化 details）
+  categoryAttributes: {
     duration?: string;      // 时长 (活动/观光/用车)
     language?: string[];    // 服务语言
     groupSize?: string;     // 团队人数规格
@@ -52,8 +56,8 @@ export interface SKU {
   availability?: CalendarPrice[];
 
   // AI 导入辅助字段
-  backendType?: string;   // 对应后端 sku_type
-  rawExtracted?: any;     // LLM 抽取的原始字�?  importTaskId?: string;  // 关联�?import 任务 ID
+  rawExtracted?: any;     // LLM 抽取的原始字段
+  importTaskId?: string;  // 关联的 import 任务 ID
 }
 
 export interface Product {
