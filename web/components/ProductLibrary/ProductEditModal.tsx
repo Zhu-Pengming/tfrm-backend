@@ -115,6 +115,17 @@ const ProductEditModal: React.FC<ProductEditModalProps> = ({ sku, onSave, onClos
     const costPrice = Number(formData.price);
     const sellPrice = Number(formData.salesPrice);
     
+    // 构建 attrs 对象
+    const attrs: any = {
+      activity_name: formData.name,
+      duration_hours: 3.5,
+      language_service: ["Chinese"],
+      meeting_point: "西岛",
+      price_mode: "fixed",
+      cost_price: costPrice,
+      sell_price: sellPrice
+    };
+    
     // 构建基础 payload
     const updatePayload: any = {
       sku_name: formData.name,
@@ -125,12 +136,7 @@ const ProductEditModal: React.FC<ProductEditModalProps> = ({ sku, onSave, onClos
       exclusions: formData.exclusions.split('\n').filter(Boolean),
       cancellation_policy: formData.cancellationPolicy,
       supplier_name: formData.provider,
-      // 直接添加 attrs，使用原始数据或空对象
-      attrs: {
-        ...(sku.rawAttrs || {}),
-        cost_price: costPrice,
-        sell_price: sellPrice
-      }
+      attrs: attrs
     };
     
     onSave(updatedSku, updatePayload);
