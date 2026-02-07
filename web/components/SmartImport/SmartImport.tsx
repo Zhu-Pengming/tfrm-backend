@@ -300,7 +300,7 @@ const SmartImport: React.FC<SmartImportProps> = ({ onSaveSKU }) => {
 
       // Poll for completion
       const taskId = initialResult.id;
-      const maxAttempts = 60; // 60 attempts * 2 seconds = 2 minutes max
+      const maxAttempts = 120; // 120 attempts * 2 seconds = 4 minutes max (Kimi处理需要2-4分钟)
       let attempts = 0;
 
       const pollInterval = setInterval(async () => {
@@ -322,7 +322,7 @@ const SmartImport: React.FC<SmartImportProps> = ({ onSaveSKU }) => {
             throw new Error(taskResult.error_message || 'Extraction failed');
           } else if (attempts >= maxAttempts) {
             clearInterval(pollInterval);
-            throw new Error('Extraction timeout - please try again');
+            throw new Error('AI处理超时（超过4分钟），请稍后重试');
           }
         } catch (pollErr: any) {
           clearInterval(pollInterval);

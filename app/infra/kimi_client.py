@@ -39,7 +39,7 @@ class KimiClient:
         print(f"  - Size: {len(file_data)} bytes")
         print(f"{'='*80}\n")
         
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        async with httpx.AsyncClient(timeout=240.0) as client:
             files = {
                 'file': (filename, file_data)
             }
@@ -86,7 +86,7 @@ class KimiClient:
         print(f"  - File ID: {file_id}")
         print(f"{'='*80}\n")
         
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        async with httpx.AsyncClient(timeout=240.0) as client:
             response = await client.get(
                 f"{self.base_url}/files/{file_id}",
                 headers={
@@ -130,7 +130,7 @@ class KimiClient:
         print(f"  - File ID: {file_id}")
         print(f"{'='*80}\n")
         
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        async with httpx.AsyncClient(timeout=240.0) as client:
             response = await client.get(
                 f"{self.base_url}/files/{file_id}/content",
                 headers={
@@ -228,7 +228,7 @@ class KimiClient:
         print(f"  - File contents extracted: {len(file_contents)}")
         print(f"{'='*80}\n")
         
-        async with httpx.AsyncClient(timeout=120.0) as client:
+        async with httpx.AsyncClient(timeout=240.0) as client:
             response = await client.post(
                 f"{self.base_url}/chat/completions",
                 headers={
