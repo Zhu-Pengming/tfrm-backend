@@ -15,7 +15,13 @@ class SKUService:
         user_id: str,
         sku_data: SKUCreate
     ) -> SKU:
-        validated_attrs = validate_attrs(sku_data.sku_type.value, sku_data.attrs)
+        # Validate attrs if provided
+        validated_attrs = {}
+        if sku_data.attrs:
+            validated_attrs = validate_attrs(sku_data.sku_type.value, sku_data.attrs)
+        
+        # Use attributes field (new) or attrs field (legacy)
+        final_attributes = sku_data.attributes if sku_data.attributes else validated_attrs
 
         # Ensure product belongs to the same agency if provided
         if sku_data.product_id:
@@ -25,19 +31,34 @@ class SKUService:
         
         sku_id = f"TFRM-{sku_data.sku_type.value.upper()}-{uuid.uuid4().hex[:8].upper()}"
         
+        # Determine category from sku_type if not provided
+        from app.domain.skus.schemas import SKU_TYPE_TO_CATEGORY
+        category = sku_data.category if sku_data.category else SKU_TYPE_TO_CATEGORY.get(sku_data.sku_type.value, sku_data.sku_type.value)
+        
         sku = SKU(
             id=sku_id,
             agency_id=agency_id,
             product_id=sku_data.product_id,
             sku_name=sku_data.sku_name,
             sku_type=sku_data.sku_type.value,
+            category=category,
             status=SKUStatus.ACTIVE,
             owner_type=sku_data.owner_type,
+            
+            # Dual-library fields
+            is_public=sku_data.is_public or False,
+            public_status="none",
+            
             supplier_id=sku_data.supplier_id,
             supplier_name=sku_data.supplier_name,
             destination_country=sku_data.destination_country,
             destination_city=sku_data.destination_city,
+            
+            # Unified tag system
             tags=sku_data.tags,
+            tags_interest=sku_data.tags_interest,
+            tags_service=sku_data.tags_service or {},
+            
             valid_from=sku_data.valid_from,
             valid_to=sku_data.valid_to,
             booking_advance=sku_data.booking_advance,
@@ -52,7 +73,18 @@ class SKUService:
             price_mode=sku_data.price_mode.value if sku_data.price_mode else None,
             calendar_prices=sku_data.calendar_prices,
             price_rules=sku_data.price_rules,
-            attrs=validated_attrs,
+            
+            # Dual attributes fields
+            attributes=final_attributes,
+            attrs=validated_attrs if validated_attrs else final_attributes,
+            
+            # Price fields
+            base_cost_price=sku_data.base_cost_price,
+            base_sale_price=sku_data.base_sale_price,
+            
+            # AI Import raw data
+            raw_extracted=sku_data.raw_extracted,
+            
             media=sku_data.media or [],
             created_by=user_id,
             created_at=datetime.utcnow(),
@@ -363,6 +395,9 @@ class SKUService:
         }
         
         sku.owner_type = "public"
+        # Mark as published to public library so browse_public_skus can find it
+        sku.is_public = True
+        sku.public_status = "published"
         sku.visibility_scope = visibility_scope
         if partner_whitelist:
             sku.partner_whitelist = partner_whitelist
@@ -381,6 +416,8 @@ class SKUService:
             before_data=before_data,
             after_data={
                 "owner_type": sku.owner_type,
+                "is_public": sku.is_public,
+                "public_status": sku.public_status,
                 "visibility_scope": sku.visibility_scope,
                 "partner_whitelist": partner_whitelist
             }

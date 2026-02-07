@@ -1,4 +1,4 @@
-﻿import React from 'react';
+﻿import React, { useState, useEffect } from 'react';
 import { NAV_ITEMS } from '../constants';
 import { SidebarTab } from '../types';
 
@@ -9,9 +9,68 @@ interface SidebarProps {
 }
 
 const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, currentUser }) => {
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
+  const [pendingCooperations, setPendingCooperations] = useState(0);
+
   const agencyLabel = currentUser 
     ? (currentUser.agency_name || currentUser.agency_id || '未设置旅行社')
     : '未登录';
+
+  // 获取未读通知数量
+  const fetchUnreadCount = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/notifications/unread-count', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setUnreadNotifications(data.count || 0);
+      }
+    } catch (error) {
+      console.error('Failed to fetch unread notifications:', error);
+    }
+  };
+
+  // 获取待审核合作数量
+  const fetchPendingCooperations = async () => {
+    try {
+      const response = await fetch('http://localhost:8000/cooperations?role=provider&status=pending', {
+        headers: {
+          'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+        }
+      });
+      if (response.ok) {
+        const data = await response.json();
+        setPendingCooperations(data.length || 0);
+      }
+    } catch (error) {
+      console.error('Failed to fetch pending cooperations:', error);
+    }
+  };
+
+  // 初始加载和定时轮询
+  useEffect(() => {
+    if (currentUser) {
+      fetchUnreadCount();
+      fetchPendingCooperations();
+
+      // 每30秒轮询一次
+      const interval = setInterval(() => {
+        fetchUnreadCount();
+        fetchPendingCooperations();
+      }, 30000);
+
+      return () => clearInterval(interval);
+    }
+  }, [currentUser]);
+
+  const getBadgeCount = (itemId: string) => {
+    if (itemId === 'Notifications') return unreadNotifications;
+    if (itemId === 'Cooperation') return pendingCooperations;
+    return 0;
+  };
 
   return (
     <aside className="w-64 bg-slate-900 text-white flex flex-col fixed h-full z-30">
@@ -22,20 +81,30 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, currentUser }
         </div>
         
         <nav className="space-y-2">
-          {NAV_ITEMS.map((item) => (
-            <button
-              key={item.id}
-              onClick={() => onTabChange(item.id as SidebarTab)}
-              className={`w-full flex items-center space-x-3 px-4 py-3 rounded-xl transition-all duration-200 ${
-                activeTab === item.id
-                  ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40'
-                  : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
-              }`}
-            >
-              {item.icon}
-              <span className="font-medium">{item.label}</span>
-            </button>
-          ))}
+          {NAV_ITEMS.map((item) => {
+            const badgeCount = getBadgeCount(item.id);
+            return (
+              <button
+                key={item.id}
+                onClick={() => onTabChange(item.id as SidebarTab)}
+                className={`w-full flex items-center justify-between px-4 py-3 rounded-xl transition-all duration-200 ${
+                  activeTab === item.id
+                    ? 'bg-blue-600 text-white shadow-lg shadow-blue-900/40'
+                    : 'text-slate-400 hover:bg-slate-800 hover:text-slate-200'
+                }`}
+              >
+                <div className="flex items-center space-x-3">
+                  {item.icon}
+                  <span className="font-medium">{item.label}</span>
+                </div>
+                {badgeCount > 0 && (
+                  <span className="ml-auto px-2 py-0.5 bg-red-500 text-white text-xs font-bold rounded-full min-w-[20px] text-center">
+                    {badgeCount > 99 ? '99+' : badgeCount}
+                  </span>
+                )}
+              </button>
+            );
+          })}
         </nav>
       </div>
       

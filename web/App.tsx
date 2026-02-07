@@ -5,6 +5,9 @@ import ProductLibrary from './components/ProductLibrary/ProductLibrary';
 import SmartImport from './components/SmartImport/SmartImport';
 import QuotationView from './components/Quotation/QuotationView';
 import VendorView from './components/Vendor/VendorView';
+import { PublicLibraryBrowser } from './components/PublicLibrary/PublicLibraryBrowser';
+import { CooperationCenter } from './components/Cooperation/CooperationCenter';
+import { NotificationCenter } from './components/Notifications/NotificationCenter';
 import { SidebarTab, SKU } from './types';
 import { useAuth } from './contexts/AuthContext';
 import LoginPage from './components/Auth/LoginPage';
@@ -186,7 +189,8 @@ const App: React.FC = () => {
         inclusions: sku.inclusions || raw.inclusions,
         exclusions: sku.exclusions || raw.exclusions,
         cancellation_policy: sku.cancellationPolicy || raw.cancellation_policy,
-        attrs: attrs
+        attrs: attrs,
+        raw_extracted: sku.rawExtracted || raw
       };
       
       console.log('Creating SKU with payload:', JSON.stringify(payload, null, 2));
@@ -222,6 +226,12 @@ const App: React.FC = () => {
         return <SmartImport onSaveSKU={handleSaveSKU} />;
       case 'ProductLibrary':
         return <ProductLibrary onAddToQuotation={handleAddToQuotation} onNavigateToImport={() => setActiveTab('SmartImport')} customSkus={customSkus} />;
+      case 'PublicLibrary':
+        return <PublicLibraryBrowser onApplyCooperation={() => {}} />;
+      case 'Cooperation':
+        return <CooperationCenter />;
+      case 'Notifications':
+        return <NotificationCenter />;
       case 'Quotation':
         return (
           <QuotationView 
@@ -260,8 +270,11 @@ const App: React.FC = () => {
             <span>工作台</span>
             <span className="mx-2">/</span>
             <span className="font-semibold text-slate-900">
-              {activeTab === 'ProductLibrary' && '产品库'}
+              {activeTab === 'ProductLibrary' && '我的私有库'}
               {activeTab === 'SmartImport' && '智能导入'}
+              {activeTab === 'PublicLibrary' && '公共库浏览'}
+              {activeTab === 'Cooperation' && '合作中心'}
+              {activeTab === 'Notifications' && '通知中心'}
               {activeTab === 'Quotation' && '报价单生成'}
               {activeTab === 'Vendor' && '供应商管理'}
             </span>

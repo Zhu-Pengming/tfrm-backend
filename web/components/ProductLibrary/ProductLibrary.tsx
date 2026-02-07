@@ -8,13 +8,28 @@ import { Category, SKU, CalendarPrice, Product } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
 
 const BACKEND_TO_FRONTEND: Record<string, Category> = {
+  // Lowercase variants
   hotel: 'Hotel',
   car: 'Transport',
   ticket: 'Ticket',
   guide: 'Guide',
   restaurant: 'Catering',
   activity: 'Activity',
-  itinerary: 'Route'
+  itinerary: 'Route',
+  transport: 'Transport',
+  route: 'Route',
+  catering: 'Catering',
+  // Uppercase variants (backend returns these)
+  HOTEL: 'Hotel',
+  CAR: 'Transport',
+  TICKET: 'Ticket',
+  GUIDE: 'Guide',
+  RESTAURANT: 'Catering',
+  ACTIVITY: 'Activity',
+  ITINERARY: 'Route',
+  TRANSPORT: 'Transport',
+  ROUTE: 'Route',
+  CATERING: 'Catering'
 };
 
 const generateCalendar = (baseCost: number, baseSales: number): CalendarPrice[] => {
@@ -204,7 +219,8 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({ onAddToQuotation, onNav
   const [skuList, setSkuList] = useState<SKU[]>([]);
   const [productList, setProductList] = useState<Product[]>([]);
   const [viewMode, setViewMode] = useState<'grid' | 'list'>('grid');
-  const [isPrivate, setIsPrivate] = useState(true);
+  // Remove isPrivate toggle - ProductLibrary only shows private SKUs
+  // Use Sidebar "公共库" menu to browse other agencies' public SKUs
   const [activeCategory, setActiveCategory] = useState<Category | 'All'>('All');
   const [searchQuery, setSearchQuery] = useState('');
   const [isBatchMode, setIsBatchMode] = useState(false);
@@ -263,7 +279,20 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({ onAddToQuotation, onNav
               const attrs = sku.attrs || {};
               const baseCost = attrs.daily_cost_price ?? attrs.cost_price ?? attrs.per_person_price ?? attrs.adult_price ?? 0;
               const baseSell = attrs.daily_sell_price ?? attrs.sell_price ?? attrs.per_person_price ?? attrs.adult_price ?? baseCost;
-              const category = BACKEND_TO_FRONTEND[sku.sku_type] || 'Activity';
+              
+              // Map category from backend format to frontend format
+              let category: Category = 'Activity';
+              
+              // First try sku.category field (new unified field)
+              if (sku.category) {
+                category = BACKEND_TO_FRONTEND[sku.category] || BACKEND_TO_FRONTEND[sku.category.toLowerCase()] || (sku.category as Category);
+              } 
+              // Fallback to sku_type mapping
+              else if (sku.sku_type) {
+                category = BACKEND_TO_FRONTEND[sku.sku_type] || BACKEND_TO_FRONTEND[sku.sku_type.toLowerCase()] || 'Activity';
+              }
+              
+              console.log(`SKU ${sku.id}: sku_type="${sku.sku_type}", category="${sku.category}" => mapped to "${category}"`);
 
               const finalDestination = `${sku.destination_city || product.destination_city || ''}${(sku.destination_country || product.destination_country) ? ', ' + (sku.destination_country || product.destination_country) : ''}`.trim();
               const needsAttention = {
@@ -301,7 +330,8 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({ onAddToQuotation, onNav
                 cancellationPolicy: sku.cancellation_policy || sku.cancel_policy || 'See supplier notes',
                 categoryAttributes: normalizedAttrs,
                 needsAttention,
-                rawAttrs: attrs
+                rawAttrs: attrs,
+                rawExtracted: sku.raw_extracted
               } as SKU;
             });
 
@@ -328,7 +358,17 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({ onAddToQuotation, onNav
             const attrs = sku.attrs || {};
             const baseCost = attrs.daily_cost_price ?? attrs.cost_price ?? attrs.per_person_price ?? attrs.adult_price ?? 0;
             const baseSell = attrs.daily_sell_price ?? attrs.sell_price ?? attrs.per_person_price ?? attrs.adult_price ?? baseCost;
-            const category = BACKEND_TO_FRONTEND[sku.sku_type] || 'Activity';
+            
+            // Map category from backend format to frontend format
+            let category: Category = 'Activity';
+            
+            if (sku.category) {
+              category = BACKEND_TO_FRONTEND[sku.category] || BACKEND_TO_FRONTEND[sku.category.toLowerCase()] || (sku.category as Category);
+            } else if (sku.sku_type) {
+              category = BACKEND_TO_FRONTEND[sku.sku_type] || BACKEND_TO_FRONTEND[sku.sku_type.toLowerCase()] || 'Activity';
+            }
+            
+            console.log(`Standalone SKU ${sku.id}: sku_type="${sku.sku_type}", category="${sku.category}" => mapped to "${category}"`);
             
             const finalDestination = `${sku.destination_city || ''}${sku.destination_country ? ', ' + sku.destination_country : ''}`.trim();
             const needsAttention = {
@@ -390,7 +430,8 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({ onAddToQuotation, onNav
               cancellationPolicy: sku.cancellation_policy || sku.cancel_policy || 'See supplier notes',
               categoryAttributes: normalizedAttrs,
               needsAttention,
-              rawAttrs: attrs
+              rawAttrs: attrs,
+              rawExtracted: sku.raw_extracted
             };
             
             // Create a virtual product for this standalone SKU
@@ -439,15 +480,24 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({ onAddToQuotation, onNav
   }, [productList]);
 
   const filteredData = useMemo(() => {
-    return allSkus.filter(item => {
-      const matchesLibrary = item.isPrivate === isPrivate;
+    console.log('Filtering with category:', activeCategory);
+    const filtered = allSkus.filter(item => {
+      // Only show private SKUs in ProductLibrary
+      const matchesLibrary = item.isPrivate !== false; // Show private or undefined
       const matchesCategory = activeCategory === 'All' || item.category === activeCategory;
       const matchesSearch = !searchQuery || 
         item.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
         item.location.toLowerCase().includes(searchQuery.toLowerCase());
+      
+      if (activeCategory !== 'All') {
+        console.log(`SKU ${item.name}: category=${item.category}, matches=${matchesCategory}`);
+      }
+      
       return matchesLibrary && matchesCategory && matchesSearch;
     });
-  }, [allSkus, isPrivate, activeCategory, searchQuery]);
+    console.log(`Filtered ${filtered.length} items from ${allSkus.length} total`);
+    return filtered;
+  }, [allSkus, activeCategory, searchQuery]);
 
   const updateIndividualPrice = async (id: string, newSalesPrice: number) => {
     try {
@@ -515,20 +565,43 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({ onAddToQuotation, onNav
       const sku = allSkus.find(s => s.id === id);
       if (!sku) return;
       
-      const { skuAPI } = await import('../../services/api');
-      const newVisibility = sku.isPrivate ? 'all' : 'private';
-      await skuAPI.update(id, {
-        ...sku,
-        visibility_scope: newVisibility
-      });
-      
-      setSkuList(prev => prev.map(s => 
-        s.id === id ? { ...s, isPrivate: !s.isPrivate } : s
-      ));
-      alert(sku.isPrivate ? '已移至公共池' : '已移至私有库');
+      // 如果当前是私有的，发布到公共库
+      if (!sku.isPublic) {
+        const response = await fetch(`http://localhost:8000/skus/${id}/publish`, {
+          method: 'POST',
+          headers: {
+            'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
+          }
+        });
+        
+        if (!response.ok) throw new Error('发布失败');
+        
+        // 更新本地状态
+        setSkuList(prev => prev.map(s => 
+          s.id === id ? { ...s, isPublic: true, publicStatus: 'published' } : s
+        ));
+        alert('已发布到公共库！');
+        
+        // 刷新列表以确保数据同步
+        setTimeout(() => {
+          window.location.reload();
+        }, 1000);
+      } else {
+        // 如果已经是公共的，从公共库下架（设置为私有）
+        const { skuAPI } = await import('../../services/api');
+        await skuAPI.update(id, {
+          is_public: false,
+          public_status: 'none'
+        });
+        
+        setSkuList(prev => prev.map(s => 
+          s.id === id ? { ...s, isPublic: false, publicStatus: 'none' } : s
+        ));
+        alert('已从公共库下架');
+      }
     } catch (error) {
       console.error('Failed to toggle privacy:', error);
-      alert('切换状态失败，请重试');
+      alert('操作失败，请重试');
     }
   };
 
@@ -593,8 +666,8 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({ onAddToQuotation, onNav
         </div>
       </div>
 
-      <div className="flex items-center gap-6 mb-6">
-        <LibraryTabs isPrivate={isPrivate} onToggle={setIsPrivate} />
+      <div className="mb-6">
+        <h2 className="text-2xl font-bold text-slate-900 mb-4">我的私有库</h2>
         <ProductFilters activeCategory={activeCategory} onCategoryChange={setActiveCategory} />
       </div>
 

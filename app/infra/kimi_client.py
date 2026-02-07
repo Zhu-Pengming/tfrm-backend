@@ -340,11 +340,12 @@ class KimiClient:
 → 这是 **itinerary（行程/旅游套餐）**，不是hotel！
 
 **酒店价格表特征：**
-- 有明确的酒店名称（如"XX大酒店"、"XX宾馆"）
-- 有房型列表（标准间、豪华套房、商务单间等）
-- 有按房型和季节划分的价格表
-- 可能包含餐饮、会议室价格
-→ 这是 **hotel（酒店）**
+- 有明确的酒店名称（如"XX大酒店"、"XX宾馆"、"XX饭店"）
+- 有房型列表（标准间、豪华套房、商务单间、套房等）
+- 有按房型和季节划分的价格表（旺季/平季/淡季或其他季节定价）
+- 可能包含餐饮、会议室价格（但主要内容是房间定价）
+- 即使同时提供餐饮和会议服务，只要有房型价格表就是hotel
+→ 这是 **hotel（酒店）**，不是activity！
 
 ⚠️ **严重警告：绝对不得混淆或编造信息** ⚠️
 - 如果是旅游套餐海报，sku_type必须是"itinerary"，不要编造具体酒店名称
@@ -382,21 +383,47 @@ class KimiClient:
 
 {{
   "sku_type": "hotel|car|itinerary|guide|restaurant|ticket|activity",
+  "category": "hotel|transport|route|guide|dining|ticket|activity",
+  // ⚠️ category 是统一的7大品类，映射关系：
+  // hotel → hotel, car → transport, itinerary → route, guide → guide
+  // restaurant → dining, ticket → ticket, activity → activity
+  
   // ⚠️ SKU类型识别规则（优先级从高到低）：
-  // - 文档包含"宾馆"、"酒店"、"饭店"或有房型价格表 → 必须是 "hotel"
-  // - 文档包含"N天N晚"、"双飞"、"双卧"、"行程"、"游东北"等多日旅游套餐 → 必须是 "itinerary"
-  // - 文档包含"餐厅"、"餐馆"但无房型 → "restaurant"  
-  // - 文档包含"用车"、"车辆"、"司机" → "car"
-  // - 文档包含"导游"、"讲解员" → "guide"
-  // - 文档包含"门票"、"景区" → "ticket"
-  // - 其他单项体验类项目 → "activity"
+  // - 文档包含"宾馆"、"酒店"、"饭店"或有房型价格表 → 必须是 "hotel" (category: "hotel")
+  // - 文档包含"N天N晚"、"双飞"、"双卧"、"行程"、"游东北"等多日旅游套餐 → 必须是 "itinerary" (category: "route")
+  // - 文档包含"餐厅"、"餐馆"但无房型 → "restaurant" (category: "dining")
+  // - 文档包含"用车"、"车辆"、"司机" → "car" (category: "transport")
+  // - 文档包含"导游"、"讲解员" → "guide" (category: "guide")
+  // - 文档包含"门票"、"景区" → "ticket" (category: "ticket")
+  // - 其他单项体验类项目 → "activity" (category: "activity")
+  
   "extracted_fields": {{
     "sku_name": "从文档中提取的名称",
     "destination_city": "城市名称",
     "destination_country": "国家名称",
     "supplier_name": "供应商名称（如有）",
-    "tags": ["标签1", "标签2"],
+    
+    // 统一标签体系（重要）
+    "tags_interest": ["美食", "亲子", "徒步", "茶艺", "咖啡", "漂流", "自行车", "摄影", "文化", "历史"],
+    // tags_interest: 兴趣标签数组，从文档中提取用户可能感兴趣的主题标签
+    // 常见标签：美食/亲子/徒步/茶艺/咖啡/漂流/自行车/摄影/文化/历史/购物/休闲/探险/浪漫/奢华/经济实惠
+    
+    "tags_service": {{
+      "language": ["中文", "英文", "泰文"],  // 服务语言
+      "duration": "3小时" 或 "全天",  // 服务时长
+      "location": "市区" 或 "郊区",  // 服务地点范围
+      "group_size": "2-8人",  // 适合团组规模
+      "difficulty": "简单" 或 "中等" 或 "困难"  // 难度等级（活动类）
+    }},
+    // tags_service: 服务标签对象，描述服务相关的属性
+    
+    "tags": ["标签1", "标签2"],  // 保留用于向后兼容
     "description": "资源简要描述",
+    
+    // 价格字段（重要）
+    "base_cost_price": 800.00,  // 供应商成本价（数字，不带货币符号）
+    "base_sale_price": 1200.00,  // 供应商对外销售价（数字，不带货币符号）
+    
     ...根据 sku_type 的其他相关字段
   }},
   "confidence": {{

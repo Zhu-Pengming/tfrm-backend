@@ -32,6 +32,10 @@ from app.domain.products.schemas import ProductCreate, ProductUpdate, ProductRes
 from app.domain.products.service import ProductService
 from app.domain.vendors.schemas import VendorCreate, VendorUpdate, VendorResponse, VendorNoteUpdate
 from app.domain.vendors.service import VendorService
+from app.domain.cooperations.schemas import CooperationCreate, CooperationApprove, CooperationResponse, PublicSKUQuery, SKUPublishRequest
+from app.domain.cooperations.service import CooperationService
+from app.domain.notifications.schemas import NotificationResponse, NotificationMarkRead
+from app.domain.notifications.service import NotificationService
 from app.infra.storage import StorageClient
 from app.config import get_settings
 
@@ -806,6 +810,167 @@ def download_file(
     return FileResponse(path)
 
 
+# ---------------------- Cooperation APIs ----------------------
+@app.post("/cooperations", response_model=CooperationResponse)
+def create_cooperation_request(
+    request_data: CooperationCreate,
+    current_user: Tuple[str, str, str] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """发起合作申请"""
+    user_id, agency_id, username = current_user
+    cooperation = CooperationService.create_cooperation_request(db, agency_id, user_id, request_data)
+    return cooperation
+
+
+@app.get("/cooperations", response_model=List[CooperationResponse])
+def list_cooperations(
+    role: Optional[str] = None,
+    status: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 50,
+    current_user: Tuple[str, str, str] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """查询合作关系列表"""
+    user_id, agency_id, username = current_user
+    cooperations = CooperationService.list_cooperations(db, agency_id, role, status, skip, limit)
+    return cooperations
+
+
+@app.post("/cooperations/{cooperation_id}/approve", response_model=CooperationResponse)
+def approve_cooperation(
+    cooperation_id: str,
+    approve_data: CooperationApprove,
+    current_user: Tuple[str, str, str] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """审核通过合作申请"""
+    user_id, agency_id, username = current_user
+    cooperation = CooperationService.approve_cooperation(db, agency_id, user_id, cooperation_id, approve_data)
+    if not cooperation:
+        raise HTTPException(status_code=404, detail="Cooperation not found or not pending")
+    return cooperation
+
+
+@app.post("/cooperations/{cooperation_id}/reject", response_model=CooperationResponse)
+def reject_cooperation(
+    cooperation_id: str,
+    approve_data: CooperationApprove,
+    current_user: Tuple[str, str, str] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """拒绝合作申请"""
+    user_id, agency_id, username = current_user
+    cooperation = CooperationService.reject_cooperation(db, agency_id, user_id, cooperation_id, approve_data)
+    if not cooperation:
+        raise HTTPException(status_code=404, detail="Cooperation not found or not pending")
+    return cooperation
+
+
+@app.post("/cooperations/{cooperation_id}/terminate", response_model=CooperationResponse)
+def terminate_cooperation(
+    cooperation_id: str,
+    current_user: Tuple[str, str, str] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """终止合作关系"""
+    user_id, agency_id, username = current_user
+    cooperation = CooperationService.terminate_cooperation(db, agency_id, user_id, cooperation_id)
+    if not cooperation:
+        raise HTTPException(status_code=404, detail="Cooperation not found or not approved")
+    return cooperation
+
+
+@app.post("/skus/{sku_id}/publish", response_model=SKUResponse)
+def publish_sku_to_public(
+    sku_id: str,
+    current_user: Tuple[str, str, str] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """发布SKU到公共库"""
+    user_id, agency_id, username = current_user
+    sku = CooperationService.publish_sku_to_public(db, agency_id, user_id, sku_id)
+    if not sku:
+        raise HTTPException(status_code=404, detail="SKU not found")
+    return sku
+
+
+@app.get("/public-skus", response_model=List[SKUResponse])
+def browse_public_skus(
+    city: Optional[str] = None,
+    category: Optional[str] = None,
+    tags: Optional[str] = None,
+    keyword: Optional[str] = None,
+    skip: int = 0,
+    limit: int = 50,
+    current_user: Tuple[str, str, str] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """浏览公共库SKU"""
+    user_id, agency_id, username = current_user
+    tags_list = tags.split(",") if tags else None
+    skus = CooperationService.browse_public_skus(db, agency_id, city, category, tags_list, keyword, skip, limit)
+    return skus
+
+
+@app.post("/public-skus/{sku_id}/copy", response_model=SKUResponse)
+def copy_public_sku_to_private(
+    sku_id: str,
+    current_user: Tuple[str, str, str] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """将公共库SKU复制到私有库"""
+    user_id, agency_id, username = current_user
+    try:
+        sku = CooperationService.copy_public_sku_to_private(db, agency_id, user_id, sku_id)
+        if not sku:
+            raise HTTPException(status_code=404, detail="Public SKU not found")
+        return sku
+    except ValueError as e:
+        raise HTTPException(status_code=403, detail=str(e))
+
+
+# ---------------------- Notification APIs ----------------------
+@app.get("/notifications", response_model=List[NotificationResponse])
+def list_notifications(
+    type: Optional[str] = None,
+    is_read: Optional[bool] = None,
+    skip: int = 0,
+    limit: int = 50,
+    current_user: Tuple[str, str, str] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """查询通知列表"""
+    user_id, agency_id, username = current_user
+    notifications = NotificationService.list_notifications(db, agency_id, user_id, type, is_read, skip, limit)
+    return notifications
+
+
+@app.get("/notifications/unread-count")
+def get_unread_count(
+    current_user: Tuple[str, str, str] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """获取未读通知数量"""
+    user_id, agency_id, username = current_user
+    count = NotificationService.get_unread_count(db, agency_id, user_id)
+    return {"count": count}
+
+
+@app.post("/notifications/mark-read")
+def mark_notifications_read(
+    mark_data: NotificationMarkRead,
+    current_user: Tuple[str, str, str] = Depends(get_current_user),
+    db: Session = Depends(get_db)
+):
+    """标记通知为已读"""
+    user_id, agency_id, username = current_user
+    count = NotificationService.mark_as_read(db, agency_id, mark_data.notification_ids)
+    return {"marked_count": count}
+
+
+# ---------------------- Vendor APIs ----------------------
 @app.post("/vendors", response_model=VendorResponse)
 def create_vendor(
     vendor_data: VendorCreate,

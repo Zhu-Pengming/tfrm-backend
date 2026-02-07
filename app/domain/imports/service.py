@@ -92,6 +92,13 @@ class ImportService:
         # 准备attrs，为必需字段添加默认值
         attrs = confirm_data.extracted_fields.copy()
         
+        # 自动纠正SKU类型：如果有room_types数据，强制为hotel
+        sku_type = confirm_data.sku_type
+        if attrs.get("room_types") and isinstance(attrs.get("room_types"), list) and len(attrs.get("room_types", [])) > 0:
+            if sku_type != "hotel":
+                print(f"⚠️ 自动纠正SKU类型: {sku_type} → hotel (检测到room_types数据)")
+                sku_type = "hotel"
+        
         # 定义各类型的特定字段
         type_specific_fields = {
             'hotel': ['hotel_name', 'room_type_name', 'address', 'daily_cost_price', 'daily_sell_price'],
@@ -104,26 +111,28 @@ class ImportService:
         }
         
         # 清理其他类型的特定字段
-        current_type_fields = type_specific_fields.get(confirm_data.sku_type, [])
+        current_type_fields = type_specific_fields.get(sku_type, [])
         for type_name, fields in type_specific_fields.items():
-            if type_name != confirm_data.sku_type:
+            if type_name != sku_type:
                 for field in fields:
                     if field in attrs and field not in current_type_fields:
                         del attrs[field]
         
         # 为酒店类型添加必需字段的默认值
-        if confirm_data.sku_type == "hotel":
+        if sku_type == "hotel":
             if "hotel_name" not in attrs:
                 attrs["hotel_name"] = confirm_data.extracted_fields.get("sku_name", "未指定酒店")
-            if "room_type_name" not in attrs:
-                attrs["room_type_name"] = "标准间"
             if "address" not in attrs:
                 # 尝试从目的地城市构建地址
                 city = confirm_data.extracted_fields.get("destination_city", "")
                 attrs["address"] = f"{city}" if city else "未指定地址"
+            
+            # 如果有room_types（复杂酒店模式），不需要room_type_name
+            if "room_types" not in attrs and "room_type_name" not in attrs:
+                attrs["room_type_name"] = "标准间"
         
         # 为行程类型添加必需字段的默认值
-        elif confirm_data.sku_type == "itinerary":
+        elif sku_type == "itinerary":
             if "itinerary_name" not in attrs:
                 attrs["itinerary_name"] = confirm_data.extracted_fields.get("sku_name", "未命名行程")
             if "days" not in attrs:
@@ -192,7 +201,7 @@ class ImportService:
         
         sku_create = SKUCreate(
             sku_name=sku_name,
-            sku_type=confirm_data.sku_type,
+            sku_type=sku_type,
             owner_type="private",
             supplier_id=confirm_data.extracted_fields.get("supplier_id"),
             supplier_name=confirm_data.extracted_fields.get("supplier_name"),
@@ -208,7 +217,8 @@ class ImportService:
             description=confirm_data.extracted_fields.get("description"),
             highlights=highlights,
             inclusions=inclusions,
-            attrs=attrs
+            attrs=attrs,
+            raw_extracted=task.extracted_fields
         )
         
         sku = SKUService.create_sku(db, agency_id, user_id, sku_create)

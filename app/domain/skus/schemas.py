@@ -28,6 +28,40 @@ class SKUTypeEnum(str, Enum):
     ACTIVITY = "activity"
 
 
+class CategoryEnum(str, Enum):
+    """PRD统一的7大品类"""
+    HOTEL = "hotel"
+    TRANSPORT = "transport"  # 用车
+    ROUTE = "route"  # 线路
+    GUIDE = "guide"
+    DINING = "dining"  # 餐饮
+    TICKET = "ticket"
+    ACTIVITY = "activity"
+
+
+# SKU类型到品类的映射
+SKU_TYPE_TO_CATEGORY = {
+    "hotel": "hotel",
+    "car": "transport",
+    "itinerary": "route",
+    "guide": "guide",
+    "restaurant": "dining",
+    "ticket": "ticket",
+    "activity": "activity"
+}
+
+# 品类到SKU类型的映射（向后兼容）
+CATEGORY_TO_SKU_TYPE = {
+    "hotel": "hotel",
+    "transport": "car",
+    "route": "itinerary",
+    "guide": "guide",
+    "dining": "restaurant",
+    "ticket": "ticket",
+    "activity": "activity"
+}
+
+
 # 前端到后端的分类映射
 FRONTEND_TO_BACKEND_CATEGORY = {
     "Hotel": "hotel",
@@ -51,6 +85,57 @@ BACKEND_TO_FRONTEND_CATEGORY = {
 }
 
 
+class SeasonalPrice(BaseModel):
+    season: str
+    daily_price: Decimal
+    currency: Optional[str] = "CNY"
+
+
+class RoomType(BaseModel):
+    building: Optional[str] = None
+    room_type_name: str
+    include_breakfast: Optional[bool] = None
+    pricing: List[SeasonalPrice]
+
+
+class DiningPricing(BaseModel):
+    group_size: str
+    price_per_person: Decimal
+    notes: Optional[str] = None
+
+
+class DiningOption(BaseModel):
+    meal_type: str
+    pricing: List[DiningPricing]
+
+
+class ConferenceRoomPricing(BaseModel):
+    duration: str
+    price: Decimal
+
+
+class ConferenceRoom(BaseModel):
+    room_name: str
+    area_sqm: Optional[int] = None
+    capacity: Optional[str] = None
+    function: Optional[str] = None
+    pricing: List[ConferenceRoomPricing]
+
+
+class SeasonDefinition(BaseModel):
+    peak: Optional[str] = None
+    regular: Optional[str] = None
+    low: Optional[str] = None
+
+
+class ContactInfo(BaseModel):
+    phone: Optional[str] = None
+    fax: Optional[str] = None
+    email: Optional[str] = None
+    website: Optional[str] = None
+    wechat: Optional[str] = None
+
+
 class HotelAttrs(BaseModel):
     hotel_name: str
     hotel_name_en: Optional[str] = None
@@ -59,13 +144,26 @@ class HotelAttrs(BaseModel):
     address: str
     latitude: Optional[Decimal] = None
     longitude: Optional[Decimal] = None
-    room_type_name: str
+    contact_info: Optional[ContactInfo] = None
+    
+    # 单房间类型模式（向后兼容）
+    room_type_name: Optional[str] = None
     bed_type: Optional[str] = None
     room_area: Optional[int] = None
     max_occupancy: Optional[int] = None
     include_breakfast: Optional[bool] = None
     daily_cost_price: Optional[Decimal] = None
     daily_sell_price: Optional[Decimal] = None
+    
+    # 复杂酒店模式（多房间类型、餐饮、会议室）
+    room_types: Optional[List[RoomType]] = None
+    facilities: Optional[List[str]] = None
+    dining_options: Optional[List[DiningOption]] = None
+    conference_rooms: Optional[List[ConferenceRoom]] = None
+    season_definitions: Optional[SeasonDefinition] = None
+    booking_notes: Optional[str] = None
+    description: Optional[str] = None
+    
     currency: Optional[str] = "CNY"
     price_calendar: Optional[Dict[str, Decimal]] = None
     refundable: Optional[bool] = None
@@ -206,13 +304,19 @@ def validate_attrs(sku_type: str, attrs: Dict[str, Any]) -> Dict[str, Any]:
 class SKUCreate(BaseModel):
     sku_name: str
     sku_type: SKUTypeEnum
+    category: Optional[str] = None  # 新增：统一品类字段
     owner_type: str
     product_id: Optional[str] = None
     supplier_id: Optional[str] = None
     supplier_name: Optional[str] = None
     destination_country: Optional[str] = None
     destination_city: Optional[str] = None
-    tags: Optional[List[str]] = None
+    
+    # 统一标签体系
+    tags: Optional[List[str]] = None  # 保留向后兼容
+    tags_interest: Optional[List[str]] = None  # 兴趣标签
+    tags_service: Optional[Dict[str, Any]] = None  # 服务标签
+    
     valid_from: Optional[date] = None
     valid_to: Optional[date] = None
     booking_advance: Optional[int] = None
@@ -227,11 +331,45 @@ class SKUCreate(BaseModel):
     price_mode: Optional[PriceMode] = None
     calendar_prices: Optional[Dict[str, Decimal]] = None
     price_rules: Optional[List[PriceRule]] = None
-    attrs: Dict[str, Any]
+    
+    # 双字段支持：attributes（新）和 attrs（旧）
+    attributes: Optional[Dict[str, Any]] = None  # 新的统一属性字段
+    attrs: Optional[Dict[str, Any]] = None  # 保留向后兼容
+    
+    # 价格字段
+    base_cost_price: Optional[Decimal] = None
+    base_sale_price: Optional[Decimal] = None
+    
+    # 公共库相关
+    is_public: Optional[bool] = False
+    publish_to_public: Optional[bool] = False  # AI导入时的意图标记
+    
+    # AI导入原始数据
+    raw_extracted: Optional[Dict[str, Any]] = None  # 完整的AI提取数据
+    
     media: Optional[List[Dict[str, str]]] = None
+    
+    @validator('category', always=True)
+    def set_category_from_sku_type(cls, v, values):
+        if v:
+            return v
+        if 'sku_type' in values:
+            return SKU_TYPE_TO_CATEGORY.get(values['sku_type'].value, values['sku_type'].value)
+        return None
+    
+    @validator('attributes', always=True)
+    def merge_attrs_to_attributes(cls, v, values):
+        # 如果提供了attributes就用attributes，否则用attrs
+        if v:
+            return v
+        if 'attrs' in values and values['attrs']:
+            return values['attrs']
+        return {}
     
     @validator('attrs')
     def validate_attrs_field(cls, v, values):
+        if not v:
+            return v
         if 'sku_type' in values:
             return validate_attrs(values['sku_type'], v)
         return v
@@ -261,6 +399,7 @@ class SKUUpdate(BaseModel):
     calendar_prices: Optional[Dict[str, Decimal]] = None
     price_rules: Optional[List[PriceRule]] = None
     attrs: Optional[Dict[str, Any]] = None
+    raw_extracted: Optional[Dict[str, Any]] = None  # AI导入原始数据
     media: Optional[List[Dict[str, str]]] = None
 
 
@@ -270,13 +409,26 @@ class SKUResponse(BaseModel):
     product_id: Optional[str]
     sku_name: str
     sku_type: str
+    category: Optional[str]  # 新增统一品类
     status: str
     owner_type: str
+    
+    # 双库字段
+    is_public: Optional[bool] = False
+    public_status: Optional[str] = "none"
+    source_org_id: Optional[str] = None
+    source_sku_id: Optional[str] = None
+    
     supplier_id: Optional[str]
     supplier_name: Optional[str]
     destination_country: Optional[str]
     destination_city: Optional[str]
+    
+    # 标签体系
     tags: Optional[List[str]]
+    tags_interest: Optional[List[str]]
+    tags_service: Optional[Dict[str, Any]]
+    
     valid_from: Optional[date]
     valid_to: Optional[date]
     description: Optional[str]
@@ -287,7 +439,18 @@ class SKUResponse(BaseModel):
     price_mode: Optional[str]
     calendar_prices: Optional[Dict[str, float]]
     price_rules: Optional[List[Dict[str, Any]]]
-    attrs: Dict[str, Any]
+    
+    # 双属性字段
+    attributes: Optional[Dict[str, Any]]  # 新字段
+    attrs: Dict[str, Any]  # 保留兼容
+    
+    # 价格字段
+    base_cost_price: Optional[float]
+    base_sale_price: Optional[float]
+    
+    # AI导入原始数据
+    raw_extracted: Optional[Dict[str, Any]]
+    
     media: Optional[List[Dict[str, str]]]
     created_at: datetime
     updated_at: datetime

@@ -1,6 +1,7 @@
 
 import React, { useState, useEffect, useRef } from 'react';
 import { SKU, CalendarPrice } from '../../types';
+import HotelDetailModal from './HotelDetailModal';
 
 interface ProductCardProps {
   sku: SKU;
@@ -20,6 +21,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
 }) => {
   const [added, setAdded] = useState(false);
   const [showModal, setShowModal] = useState(false);
+  const [showHotelModal, setShowHotelModal] = useState(false);
   const [showMenu, setShowMenu] = useState(false);
   const menuRef = useRef<HTMLDivElement>(null);
   const packageOptions = relatedSkus && relatedSkus.length > 0 ? relatedSkus : [sku];
@@ -54,7 +56,12 @@ const ProductCard: React.FC<ProductCardProps> = ({
     if (isSelectable) {
       onSelect?.();
     } else {
-      setShowModal(true);
+      // 酒店类别使用专门的HotelDetailModal
+      if (currentSku.category === 'Hotel' && currentSku.rawAttrs?.room_types) {
+        setShowHotelModal(true);
+      } else {
+        setShowModal(true);
+      }
     }
   };
 
@@ -143,9 +150,18 @@ const ProductCard: React.FC<ProductCardProps> = ({
           </div>
           <div className="absolute bottom-2 right-2">
             <div className="bg-blue-600 px-2 py-1 rounded-lg shadow-lg border border-blue-500">
-              <p className="text-sm font-black text-white leading-none">楼{currentSku.salesPrice}</p>
+              <p className="text-sm font-black text-white leading-none">¥{currentSku.salesPrice}</p>
             </div>
           </div>
+          {attentionLabels.length > 0 && (
+            <div className="absolute top-2 left-2 flex flex-wrap gap-1">
+              {attentionLabels.map((label, idx) => (
+                <span key={idx} className="px-2 py-1 bg-amber-500/90 text-white text-[10px] font-black rounded-lg shadow">
+                  {label}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
         
         <div className="p-4 flex flex-col flex-grow">
@@ -158,15 +174,6 @@ const ProductCard: React.FC<ProductCardProps> = ({
               </button>
             </div>
           </div>
-          {attentionLabels.length > 0 && (
-            <div className="absolute bottom-2 right-2 flex flex-wrap gap-1">
-              {attentionLabels.map((label, idx) => (
-                <span key={idx} className="px-2 py-1 bg-amber-500/90 text-white text-[10px] font-black rounded-lg shadow">
-                  {label}
-                </span>
-              ))}
-            </div>
-          )}
         </div>
 
       {showModal && (
@@ -224,18 +231,45 @@ const ProductCard: React.FC<ProductCardProps> = ({
                         </p>
                      </section>
 
+                     {/* Debug: Show raw_extracted structure */}
+                     {currentSku.rawExtracted && (
+                       <section className="bg-blue-50 p-6 rounded-2xl border-2 border-blue-200">
+                         <h4 className="text-[11px] font-black text-blue-600 uppercase tracking-widest mb-4">完整提取数据 (Raw Extracted)</h4>
+                         <pre className="text-xs text-slate-700 overflow-auto max-h-96 bg-white p-4 rounded-xl">
+                           {JSON.stringify(currentSku.rawExtracted, null, 2)}
+                         </pre>
+                       </section>
+                     )}
+
                      <section>
                         <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-3">
                            <div className="w-1.5 h-1.5 rounded-full bg-blue-600"></div>
                            体验亮点 (Highlights)
                         </h4>
                         <div className="grid grid-cols-1 gap-4">
-                           {currentSku.highlights.map((h, i) => (
-                             <div key={i} className="flex gap-4 p-5 bg-slate-50 rounded-2xl items-center font-black text-slate-800 border border-slate-100/50">
-                                <svg className="w-5 h-5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
-                                {h}
-                             </div>
-                           ))}
+                           {currentSku.highlights && currentSku.highlights.length > 0 ? (
+                             currentSku.highlights.map((h, i) => (
+                               <div key={i} className="flex gap-4 p-5 bg-slate-50 rounded-2xl items-center font-black text-slate-800 border border-slate-100/50">
+                                  <svg className="w-5 h-5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
+                                  {h}
+                               </div>
+                             ))
+                           ) : currentSku.rawExtracted ? (
+                             Object.entries(currentSku.rawExtracted).map(([key, value]) => {
+                               if (!value || typeof value === 'object' || key === 'sku_name' || key === 'supplier_name' || key === 'destination_country' || key === 'destination_city') return null;
+                               return (
+                                 <div key={key} className="flex gap-4 p-5 bg-slate-50 rounded-2xl items-start font-black text-slate-800 border border-slate-100/50">
+                                    <svg className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" /></svg>
+                                    <div className="flex-1">
+                                      <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">{key.replace(/_/g, ' ')}</div>
+                                      <div className="text-sm">{Array.isArray(value) ? value.join(', ') : String(value)}</div>
+                                    </div>
+                                 </div>
+                               );
+                             })
+                           ) : (
+                             <div className="text-sm text-slate-400 italic">暂无亮点信息</div>
+                           )}
                         </div>
                      </section>
 
@@ -245,7 +279,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
                              <ul className="space-y-4 text-xs font-bold text-slate-700">
                                 {currentSku.inclusions?.map((item, i) => (
                                   <li key={i} className="flex gap-3">
-                                    <span className="text-emerald-500">?</span>
+                                    <span className="text-emerald-500">✓</span>
                                     {item}
                                   </li>
                                 ))}
@@ -263,6 +297,179 @@ const ProductCard: React.FC<ProductCardProps> = ({
                              </ul>
                           </section>
                      </div>
+
+                     {/* 季节定义 */}
+                     {currentSku.rawExtracted?.season_definitions && (
+                       <section>
+                         <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-3">
+                           <div className="w-1.5 h-1.5 rounded-full bg-blue-600"></div>
+                           季节定义
+                         </h4>
+                         <div className="grid grid-cols-3 gap-4">
+                           {currentSku.rawExtracted.season_definitions.peak && (
+                             <div className="bg-blue-50 p-4 rounded-xl border border-blue-100">
+                               <p className="text-xs font-black text-blue-600 mb-2">peak</p>
+                               <p className="text-xs text-slate-600">{currentSku.rawExtracted.season_definitions.peak}</p>
+                             </div>
+                           )}
+                           {currentSku.rawExtracted.season_definitions.regular && (
+                             <div className="bg-green-50 p-4 rounded-xl border border-green-100">
+                               <p className="text-xs font-black text-green-600 mb-2">regular</p>
+                               <p className="text-xs text-slate-600">{currentSku.rawExtracted.season_definitions.regular}</p>
+                             </div>
+                           )}
+                           {currentSku.rawExtracted.season_definitions.low && (
+                             <div className="bg-purple-50 p-4 rounded-xl border border-purple-100">
+                               <p className="text-xs font-black text-purple-600 mb-2">low</p>
+                               <p className="text-xs text-slate-600">{currentSku.rawExtracted.season_definitions.low}</p>
+                             </div>
+                           )}
+                         </div>
+                       </section>
+                     )}
+
+                     {/* 房型价格表 */}
+                     {currentSku.rawExtracted?.room_types && currentSku.rawExtracted.room_types.length > 0 && (
+                       <section>
+                         <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-3">
+                           <span className="text-lg">🏨</span>
+                           房型价格表
+                         </h4>
+                         <div className="overflow-x-auto">
+                           <table className="w-full text-xs">
+                             <thead>
+                               <tr className="border-b-2 border-slate-200">
+                                 <th className="text-left py-3 px-4 font-black text-slate-600">楼栋</th>
+                                 <th className="text-left py-3 px-4 font-black text-slate-600">房型</th>
+                                 <th className="text-center py-3 px-4 font-black text-slate-600">含早</th>
+                                 <th className="text-right py-3 px-4 font-black text-green-600">旺季</th>
+                                 <th className="text-right py-3 px-4 font-black text-blue-600">平季</th>
+                                 <th className="text-right py-3 px-4 font-black text-purple-600">淡季</th>
+                               </tr>
+                             </thead>
+                             <tbody>
+                               {currentSku.rawExtracted.room_types.map((room: any, i: number) => (
+                                 <tr key={i} className="border-b border-slate-100 hover:bg-slate-50">
+                                   <td className="py-3 px-4 font-bold text-slate-700">{room.building}</td>
+                                   <td className="py-3 px-4 font-bold text-slate-700">{room.room_type_name}</td>
+                                   <td className="text-center py-3 px-4">
+                                     {room.include_breakfast && <span className="text-green-500">✓</span>}
+                                   </td>
+                                   {room.pricing?.map((p: any, j: number) => (
+                                     <td key={j} className="text-right py-3 px-4 font-black text-slate-800">
+                                       ¥{p.daily_price}
+                                     </td>
+                                   ))}
+                                 </tr>
+                               ))}
+                             </tbody>
+                           </table>
+                         </div>
+                       </section>
+                     )}
+
+                     {/* 餐饮价格表 */}
+                     {currentSku.rawExtracted?.dining_options && currentSku.rawExtracted.dining_options.length > 0 && (
+                       <section>
+                         <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-3">
+                           <span className="text-lg">🍽️</span>
+                           餐饮价格表
+                         </h4>
+                         <div className="space-y-6">
+                           {currentSku.rawExtracted.dining_options.map((option: any, idx: number) => {
+                             const isSpecialPackage = option.meal_type?.includes('敦煌宴') || 
+                                                     option.pricing?.some((p: any) => p.notes?.includes('包场'));
+                             
+                             return (
+                               <div key={idx}>
+                                 <h5 className={`text-sm font-black mb-3 ${isSpecialPackage ? 'text-amber-700' : 'text-slate-700'}`}>
+                                   {option.meal_type}
+                                 </h5>
+                                 <div className="grid grid-cols-4 gap-3">
+                                   {option.pricing?.map((p: any, i: number) => (
+                                     <div key={i} className={`p-4 rounded-xl border text-center ${
+                                       isSpecialPackage 
+                                         ? 'bg-gradient-to-br from-amber-50 to-orange-50 border-amber-200' 
+                                         : 'bg-slate-50 border-slate-100'
+                                     }`}>
+                                       <p className="text-[10px] text-slate-500 mb-1">{p.group_size}</p>
+                                       <p className={`text-lg font-black ${isSpecialPackage ? 'text-amber-600' : 'text-green-600'}`}>
+                                         ¥{p.price_per_person}
+                                       </p>
+                                       <p className="text-[9px] text-slate-400">
+                                         {p.notes?.includes('包场') ? '总价' : '每人'}
+                                       </p>
+                                       {p.notes && <p className="text-[8px] text-slate-400 mt-1">{p.notes}</p>}
+                                     </div>
+                                   ))}
+                                 </div>
+                               </div>
+                             );
+                           })}
+                         </div>
+                       </section>
+                     )}
+
+                     {/* 特色套餐 */}
+                     {currentSku.rawExtracted?.special_packages && currentSku.rawExtracted.special_packages.length > 0 && (
+                       <section>
+                         <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-3">
+                           <span className="text-lg">⭐</span>
+                           特色套餐
+                         </h4>
+                         <div className="space-y-6">
+                           {currentSku.rawExtracted.special_packages.map((pkg: any, i: number) => (
+                             <div key={i} className="bg-gradient-to-br from-amber-50 to-orange-50 p-6 rounded-2xl border-2 border-amber-200">
+                               <h5 className="text-base font-black text-amber-900 mb-4">{pkg.package_name}</h5>
+                               <div className="grid grid-cols-2 gap-4">
+                                 {pkg.pricing?.map((p: any, j: number) => (
+                                   <div key={j} className="bg-white p-4 rounded-xl border border-amber-100 text-center">
+                                     <p className="text-[10px] text-slate-500 mb-2">{p.group_size || p.type}</p>
+                                     <p className="text-xl font-black text-amber-600">
+                                       ¥{p.total_price || p.price_per_person || p.price}
+                                     </p>
+                                     <p className="text-[9px] text-slate-400 mt-1">
+                                       {p.total_price ? '总价' : '每人'}
+                                     </p>
+                                   </div>
+                                 ))}
+                               </div>
+                             </div>
+                           ))}
+                         </div>
+                       </section>
+                     )}
+
+                     {/* 会议室价格表 */}
+                     {currentSku.rawExtracted?.conference_rooms && currentSku.rawExtracted.conference_rooms.length > 0 && (
+                       <section>
+                         <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-3">
+                           <span className="text-lg">🎯</span>
+                           会议室价格表
+                         </h4>
+                         <div className="grid grid-cols-2 gap-4">
+                           {currentSku.rawExtracted.conference_rooms.map((room: any, i: number) => (
+                             <div key={i} className="bg-slate-50 p-6 rounded-2xl border border-slate-100">
+                               <div className="mb-4">
+                                 <h5 className="text-sm font-black text-slate-800 mb-1">{room.room_name}</h5>
+                                 <p className="text-[10px] text-slate-500">
+                                   {room.area_sqm}m² · {room.function}
+                                 </p>
+                               </div>
+                               <p className="text-xs text-slate-600 mb-3">{room.capacity}</p>
+                               <div className="flex gap-3">
+                                 {room.pricing?.map((p: any, j: number) => (
+                                   <div key={j} className="flex-1 text-center">
+                                     <p className="text-[9px] text-slate-400 mb-1">{p.duration}</p>
+                                     <p className="text-base font-black text-blue-600">¥{p.price}</p>
+                                   </div>
+                                 ))}
+                               </div>
+                             </div>
+                           ))}
+                         </div>
+                       </section>
+                     )}
                   </div>
 
                   {/* 鍙充晶杈规爮锛氭妧鏈弬鏁?(GetYourGuide 椋庢牸) */}
@@ -314,6 +521,41 @@ const ProductCard: React.FC<ProductCardProps> = ({
                      </div>
                   </div>
                </div>
+
+               {/* 联系方式 */}
+               {currentSku.rawExtracted?.contact_info && (
+                 <div className="mt-12 p-8 bg-slate-900 rounded-[2.5rem] text-white">
+                   <h4 className="text-[11px] font-black text-slate-500 uppercase tracking-widest mb-6">联系方式</h4>
+                   <div className="grid grid-cols-2 gap-6">
+                     {currentSku.rawExtracted.contact_info.phone && (
+                       <div>
+                         <p className="text-[9px] text-slate-500 font-black uppercase mb-2">电话</p>
+                         <p className="text-sm font-bold text-white">{currentSku.rawExtracted.contact_info.phone}</p>
+                       </div>
+                     )}
+                     {currentSku.rawExtracted.contact_info.fax && (
+                       <div>
+                         <p className="text-[9px] text-slate-500 font-black uppercase mb-2">传真</p>
+                         <p className="text-sm font-bold text-white">{currentSku.rawExtracted.contact_info.fax}</p>
+                       </div>
+                     )}
+                     {currentSku.rawExtracted.contact_info.email && (
+                       <div>
+                         <p className="text-[9px] text-slate-500 font-black uppercase mb-2">邮箱</p>
+                         <p className="text-sm font-bold text-white">{currentSku.rawExtracted.contact_info.email}</p>
+                       </div>
+                     )}
+                     {currentSku.rawExtracted.contact_info.website && (
+                       <div>
+                         <p className="text-[9px] text-slate-500 font-black uppercase mb-2">网址</p>
+                         <a href={currentSku.rawExtracted.contact_info.website} target="_blank" rel="noopener noreferrer" className="text-sm font-bold text-blue-400 hover:text-blue-300">
+                           {currentSku.rawExtracted.contact_info.website}
+                         </a>
+                       </div>
+                     )}
+                   </div>
+                 </div>
+               )}
             </div>
 
             <div className="p-10 border-t border-slate-100 bg-white flex items-center justify-between">
@@ -340,6 +582,14 @@ const ProductCard: React.FC<ProductCardProps> = ({
             </div>
           </div>
         </div>
+      )}
+      
+      {showHotelModal && (
+        <HotelDetailModal
+          sku={currentSku}
+          onClose={() => setShowHotelModal(false)}
+          onAdd={onAdd}
+        />
       )}
     </>
   );

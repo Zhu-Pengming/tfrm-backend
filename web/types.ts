@@ -28,6 +28,26 @@ export interface SKU {
     cancellation?: boolean;
   };
 
+  // 双库系统字段
+  isPublic?: boolean;           // 是否发布到公共库
+  publicStatus?: 'none' | 'pending' | 'published' | 'removed';  // 公共库状态
+  sourceOrgId?: string;         // 源机构ID（从公共库复制时）
+  sourceSkuId?: string;         // 源SKU ID（从公共库复制时）
+  
+  // 统一标签体系
+  tagsInterest?: string[];      // 兴趣标签
+  tagsService?: {               // 服务标签
+    language?: string[];
+    duration?: string;
+    location?: string;
+    groupSize?: string;
+    difficulty?: string;
+  };
+  
+  // 价格字段
+  baseCostPrice?: number;       // 供应商成本价
+  baseSalePrice?: number;       // 供应商销售价
+
   // 1. 体验层（GetYourGuide 标准内容）
   description: string;
   highlights: string[];
@@ -88,6 +108,38 @@ export interface Vendor {
   note?: string;
 }
 
-export type SidebarTab = 'SmartImport' | 'ProductLibrary' | 'Quotation' | 'Vendor';
+// 合作关系
+export interface Cooperation {
+  id: string;
+  fromAgencyId: string;
+  toAgencyId: string;
+  status: 'pending' | 'approved' | 'rejected' | 'expired' | 'terminated';
+  requestMessage?: string;
+  responseMessage?: string;
+  createdAt: string;
+  updatedAt: string;
+  expiredAt?: string;
+  approvedAt?: string;
+  terminatedAt?: string;
+  createdBy?: string;
+  reviewedBy?: string;
+}
+
+// 通知
+export interface Notification {
+  id: string;
+  agencyId: string;
+  userId?: string;
+  type: 'cooperation_change' | 'sku_update' | 'system';
+  title: string;
+  content: string;
+  relatedEntityType?: string;
+  relatedEntityId?: string;
+  isRead: boolean;
+  readAt?: string;
+  createdAt: string;
+}
+
+export type SidebarTab = 'SmartImport' | 'ProductLibrary' | 'Quotation' | 'Vendor' | 'PublicLibrary' | 'Cooperation' | 'Notifications';
 
 

@@ -132,16 +132,30 @@ class SKU(Base):
     agency_id = Column(String, nullable=False, index=True)
     product_id = Column(String, index=True)
     sku_name = Column(String, nullable=False)
-    sku_type = Column(SQLEnum(SKUType), nullable=False, index=True)
+    
+    # Unified category field (7 categories)
+    category = Column(String, nullable=False, index=True)  # hotel|transport|route|guide|dining|ticket|activity
+    sku_type = Column(SQLEnum(SKUType), nullable=False, index=True)  # Keep for backward compatibility
+    
     status = Column(SQLEnum(SKUStatus), default=SKUStatus.ACTIVE, index=True)
     owner_type = Column(SQLEnum(OwnerType), nullable=False, index=True)
+    
+    # Dual-library fields
+    is_public = Column(Boolean, default=False, index=True)
+    public_status = Column(String, default="none", index=True)  # none|pending|published|removed
+    source_org_id = Column(String, index=True)  # Original agency_id if copied from public library
+    source_sku_id = Column(String, index=True)  # Original SKU id if copied
     
     supplier_id = Column(String, index=True)
     supplier_name = Column(String)
     
     destination_country = Column(String, index=True)
     destination_city = Column(String, index=True)
-    tags = Column(ARRAY(String), index=True)
+    
+    # Unified tag system
+    tags = Column(ARRAY(String), index=True)  # Legacy field
+    tags_interest = Column(ARRAY(String), index=True)  # 兴趣标签: 美食/亲子/徒步/茶艺/咖啡/漂流/自行车
+    tags_service = Column(JSON, default={})  # 服务标签: {language: [中/英/泰], duration: X, location: Y}
     
     valid_from = Column(Date)
     valid_to = Column(Date)
@@ -156,17 +170,25 @@ class SKU(Base):
     exclusions = Column(ARRAY(String))
     cancellation_policy = Column(Text)
     
-    attrs = Column(JSON, nullable=False, default={})
-    price_mode = Column(String)                 # fixed / calendar / ruled
-    calendar_prices = Column(JSON)              # date -> price
-    price_rules = Column(JSON)                  # list of rules (weekend +delta 等)
+    # Category-specific attributes (JSONB for 7 categories)
+    attributes = Column(JSON, nullable=False, default={})  # New unified attributes field
+    attrs = Column(JSON, nullable=False, default={})  # Keep for backward compatibility
+    
+    # AI Import raw data
+    raw_extracted = Column(JSON)  # Complete extracted data from AI import (room_types, dining_options, etc.)
+    
+    # Price fields
+    price_mode = Column(String)  # fixed / calendar / ruled
+    base_cost_price = Column(Numeric(10, 2))  # 供应商成本价
+    base_sale_price = Column(Numeric(10, 2))  # 供应商对外基准价
+    calendar_prices = Column(JSON)  # date -> price
+    price_rules = Column(JSON)  # list of rules (weekend +delta 等)
     
     media = Column(JSON, default=[])
     
     visibility_scope = Column(String, default="all")
     partner_whitelist = Column(ARRAY(String))
     
-    source_sku_id = Column(String)
     applied_factor_id = Column(String)
     
     created_by = Column(String)
@@ -291,6 +313,72 @@ class Vendor(Base):
     note = Column(Text)
     created_at = Column(DateTime, default=datetime.utcnow, index=True)
     updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class CooperationRelation(Base):
+    """合作关系表：机构间的合作申请与审核"""
+    __tablename__ = "cooperation_relations"
+    
+    id = Column(String, primary_key=True)
+    from_agency_id = Column(String, nullable=False, index=True)  # 申请方
+    to_agency_id = Column(String, nullable=False, index=True)    # 被申请方（资源提供方）
+    
+    status = Column(String, nullable=False, index=True)  # pending|approved|rejected|expired|terminated
+    
+    request_message = Column(Text)  # 申请说明
+    response_message = Column(Text)  # 审核回复
+    
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    expired_at = Column(DateTime)  # 申请超时时间
+    approved_at = Column(DateTime)  # 审核通过时间
+    terminated_at = Column(DateTime)  # 终止时间
+    
+    created_by = Column(String)  # 申请人user_id
+    reviewed_by = Column(String)  # 审核人user_id
+
+
+class CooperationSKUPrice(Base):
+    """合作SKU价格表：针对特定合作方的协商价"""
+    __tablename__ = "cooperation_sku_prices"
+    
+    id = Column(String, primary_key=True)
+    sku_id = Column(String, nullable=False, index=True)
+    provider_agency_id = Column(String, nullable=False, index=True)  # 供应商
+    consumer_agency_id = Column(String, nullable=False, index=True)  # 采购方
+    
+    partner_cost_price = Column(Numeric(10, 2))  # 给合作方的成本价
+    partner_sale_price = Column(Numeric(10, 2))  # 给合作方的销售价
+    
+    markup_factor = Column(Numeric(10, 4), default=1.0)  # 采购方的加价倍率
+    markup_amount = Column(Numeric(10, 2), default=0.0)  # 采购方的加价金额
+    
+    valid_from = Column(Date)
+    valid_to = Column(Date)
+    
+    created_at = Column(DateTime, default=datetime.utcnow)
+    updated_at = Column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
+class Notification(Base):
+    """站内通知表：合作变更、SKU更新等通知"""
+    __tablename__ = "notifications"
+    
+    id = Column(String, primary_key=True)
+    agency_id = Column(String, nullable=False, index=True)  # 接收方
+    user_id = Column(String, index=True)  # 具体接收人（可选）
+    
+    type = Column(String, nullable=False, index=True)  # cooperation_change|sku_update|system
+    title = Column(String, nullable=False)
+    content = Column(Text, nullable=False)
+    
+    related_entity_type = Column(String)  # cooperation|sku|quotation
+    related_entity_id = Column(String, index=True)
+    
+    is_read = Column(Boolean, default=False, index=True)
+    read_at = Column(DateTime)
+    
+    created_at = Column(DateTime, default=datetime.utcnow, index=True)
 
 
 class AuditLog(Base):

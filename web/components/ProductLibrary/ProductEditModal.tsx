@@ -15,9 +15,12 @@ interface Vendor {
 }
 
 const ProductEditModal: React.FC<ProductEditModalProps> = ({ sku, onSave, onClose }) => {
+  // 从rawExtracted或rawAttrs中提取酒店特有信息
+  const hotelInfo = sku.rawExtracted || sku.rawAttrs || {};
+  
   const [formData, setFormData] = useState({
     name: sku.name,
-    description: sku.description,
+    description: sku.description || hotelInfo.description || '',
     location: sku.location,
     provider: sku.provider,
     price: sku.price,
@@ -26,7 +29,12 @@ const ProductEditModal: React.FC<ProductEditModalProps> = ({ sku, onSave, onClos
     highlights: sku.highlights?.join('\n') || '',
     inclusions: sku.inclusions?.join('\n') || '',
     exclusions: sku.exclusions?.join('\n') || '',
-    cancellationPolicy: sku.cancellationPolicy || ''
+    cancellationPolicy: sku.cancellationPolicy || '',
+    // 酒店特有字段
+    hotelName: hotelInfo.hotel_name || sku.name || '',
+    starRating: hotelInfo.star_rating || '',
+    address: hotelInfo.address || sku.location || '',
+    bookingNotes: hotelInfo.booking_notes || ''
   });
 
   const [vendors, setVendors] = useState<Vendor[]>([]);
@@ -115,16 +123,53 @@ const ProductEditModal: React.FC<ProductEditModalProps> = ({ sku, onSave, onClos
     const costPrice = Number(formData.price);
     const sellPrice = Number(formData.salesPrice);
     
-    // 构建 attrs 对象
-    const attrs: any = {
-      activity_name: formData.name,
-      duration_hours: 3.5,
-      language_service: ["Chinese"],
-      meeting_point: "西岛",
-      price_mode: "fixed",
-      cost_price: costPrice,
-      sell_price: sellPrice
-    };
+    // 根据SKU类型和raw_extracted数据动态构建attrs
+    let attrs: any = {};
+    
+    // 如果有raw_extracted数据，优先使用其中的复杂结构
+    if (sku.rawExtracted) {
+      // 对于酒店类型，保留room_types、dining_options、conference_rooms等
+      if (sku.category === 'Hotel' && sku.rawExtracted.room_types) {
+        attrs = {
+          hotel_name: formData.hotelName || sku.rawExtracted.hotel_name || formData.name,
+          star_rating: formData.starRating || sku.rawExtracted.star_rating,
+          address: formData.address || sku.rawExtracted.address,
+          contact_info: sku.rawExtracted.contact_info,
+          facilities: sku.rawExtracted.facilities,
+          room_types: sku.rawExtracted.room_types,
+          dining_options: sku.rawExtracted.dining_options,
+          conference_rooms: sku.rawExtracted.conference_rooms,
+          season_definitions: sku.rawExtracted.season_definitions,
+          booking_notes: formData.bookingNotes || sku.rawExtracted.booking_notes,
+          description: formData.description
+        };
+      } else {
+        // 其他类型，使用rawAttrs中的数据
+        attrs = sku.rawAttrs || {};
+      }
+    } else {
+      // 如果没有raw_extracted，根据类别构建基础attrs
+      if (sku.category === 'Hotel') {
+        attrs = {
+          hotel_name: formData.hotelName || formData.name,
+          star_rating: formData.starRating,
+          address: formData.address || formData.location,
+          description: formData.description,
+          booking_notes: formData.bookingNotes
+        };
+      } else {
+        // 默认activity类型
+        attrs = {
+          activity_name: formData.name,
+          duration_hours: 3.5,
+          language_service: ["Chinese"],
+          meeting_point: formData.location,
+          price_mode: "fixed",
+          cost_price: costPrice,
+          sell_price: sellPrice
+        };
+      }
+    }
     
     // 构建基础 payload
     const updatePayload: any = {
@@ -282,6 +327,60 @@ const ProductEditModal: React.FC<ProductEditModalProps> = ({ sku, onSave, onClos
                 rows={3}
               />
             </div>
+
+            {/* Hotel-specific fields */}
+            {sku.category === 'Hotel' && (
+              <div className="bg-blue-50 border border-blue-200 rounded-xl p-6 space-y-4">
+                <h3 className="text-sm font-black text-blue-900">酒店信息</h3>
+                <div className="grid grid-cols-2 gap-4">
+                  <div>
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">
+                      酒店名称
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.hotelName}
+                      onChange={(e) => setFormData({ ...formData, hotelName: e.target.value })}
+                      className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-100 outline-none"
+                    />
+                  </div>
+                  <div>
+                    <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">
+                      星级
+                    </label>
+                    <input
+                      type="text"
+                      value={formData.starRating}
+                      onChange={(e) => setFormData({ ...formData, starRating: e.target.value })}
+                      className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-100 outline-none"
+                      placeholder="例如: 四星级"
+                    />
+                  </div>
+                </div>
+                <div>
+                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">
+                    地址
+                  </label>
+                  <input
+                    type="text"
+                    value={formData.address}
+                    onChange={(e) => setFormData({ ...formData, address: e.target.value })}
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-100 outline-none"
+                  />
+                </div>
+                <div>
+                  <label className="block text-xs font-black text-slate-400 uppercase tracking-widest mb-2">
+                    预订说明
+                  </label>
+                  <textarea
+                    value={formData.bookingNotes}
+                    onChange={(e) => setFormData({ ...formData, bookingNotes: e.target.value })}
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-100 outline-none resize-none"
+                    rows={3}
+                  />
+                </div>
+              </div>
+            )}
 
             {/* Tags */}
             <div>
