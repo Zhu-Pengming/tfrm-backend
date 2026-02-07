@@ -327,7 +327,7 @@ def publish_sku(
 
 
 @app.post("/skus", response_model=SKUResponse)
-def create_sku(
+async def create_sku(
     sku_data: SKUCreate,
     current_user: Tuple[str, str, str] = Depends(get_current_user_optional),
     db: Session = Depends(get_db)
@@ -379,7 +379,7 @@ def get_sku_availability(
 
 
 @app.put("/skus/{sku_id}", response_model=SKUResponse)
-def update_sku(
+async def update_sku(
     sku_id: str,
     sku_data: SKUUpdate,
     current_user: Tuple[str, str, str] = Depends(get_current_user_optional),
@@ -393,7 +393,7 @@ def update_sku(
 
 
 @app.delete("/skus/{sku_id}")
-def delete_sku(
+async def delete_sku(
     sku_id: str,
     current_user: Tuple[str, str, str] = Depends(get_current_user_optional),
     db: Session = Depends(get_db)
@@ -424,7 +424,7 @@ def update_price_calendar(
 
 
 @app.get("/skus", response_model=List[SKUResponse])
-def list_skus(
+async def list_skus(
     sku_type: Optional[str] = None,
     city: Optional[str] = None,
     tags: Optional[str] = None,
