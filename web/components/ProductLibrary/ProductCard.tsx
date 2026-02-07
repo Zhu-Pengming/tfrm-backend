@@ -2,6 +2,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { SKU, CalendarPrice } from '../../types';
 import HotelDetailModal from './HotelDetailModal';
+import { generateTextBackground } from '../../utils/textBackground';
 
 interface ProductCardProps {
   sku: SKU;
@@ -78,6 +79,10 @@ const ProductCard: React.FC<ProductCardProps> = ({
     ? (((currentSku.salesPrice - currentSku.price) / currentSku.salesPrice) * 100).toFixed(1)
     : '0.0';
 
+  const cardImage = currentSku.originalFilename 
+    ? generateTextBackground(currentSku.originalFilename)
+    : currentSku.image;
+
   return (
     <>
       <div 
@@ -88,11 +93,10 @@ const ProductCard: React.FC<ProductCardProps> = ({
             : 'border-slate-200 hover:shadow-xl hover:-translate-y-1'
         }`}
       >
-        <div className="relative h-44 overflow-hidden rounded-t-2xl bg-slate-100">
-          <img src={currentSku.image} alt={currentSku.productTitle || currentSku.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
-          <div className="absolute inset-0 bg-gradient-to-t from-black/30 via-transparent to-transparent pointer-events-none"></div>
+        <div className="relative h-44 overflow-hidden rounded-t-2xl">
+          <img src={cardImage} alt={currentSku.productTitle || currentSku.name} className="w-full h-full object-cover transition-transform duration-700 group-hover:scale-105" />
           <div className="absolute top-2 left-2 right-2 flex items-center justify-between gap-2">
-            <span className="px-2 py-0.5 bg-black/70 backdrop-blur-md text-white text-[9px] font-black rounded uppercase tracking-wider shadow-lg">{currentSku.category}</span>
+            <span className="px-2 py-0.5 bg-black/60 backdrop-blur-md text-white text-[9px] font-black rounded uppercase tracking-wider">{currentSku.category}</span>
             <div className="flex items-center gap-2">
               {posterUrl && (
                 <a

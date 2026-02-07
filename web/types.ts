@@ -79,6 +79,7 @@ export interface SKU {
   rawExtracted?: any;     // LLM 抽取的原始字段
   importTaskId?: string;  // 关联的 import 任务 ID
   rawAttrs?: any;         // 后端原始 attrs 数据
+  originalFilename?: string;  // 原始上传文件名（用于生成艺术背景）
 }
 
 export interface Product {
