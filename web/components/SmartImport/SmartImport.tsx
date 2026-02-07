@@ -171,9 +171,14 @@ const SmartImport: React.FC<SmartImportProps> = ({ onSaveSKU }) => {
         };
       }
       if (type === 'activity') {
+        // Ensure language_service is an array
+        const languageService = ef.language_service 
+          ? (Array.isArray(ef.language_service) ? ef.language_service : [ef.language_service])
+          : undefined;
+        
         return {
           duration: ef.duration_hours ? `${ef.duration_hours}h` : (ef.days ? `${ef.days}天${ef.nights ? ef.nights + '晚' : ''}` : undefined),
-          language: ef.language_service,
+          language: languageService,
           meetingPoint: ef.meeting_point,
           depart_city: ef.depart_city,
           arrive_city: ef.arrive_city,
