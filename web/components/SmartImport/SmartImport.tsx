@@ -222,7 +222,8 @@ const SmartImport: React.FC<SmartImportProps> = ({ onSaveSKU }) => {
       if (result.status === 'failed') throw new Error(result?.error_message || 'Extraction failed');
       if (result.status !== 'parsed') throw new Error(`Status error: ${result.status}`);
 
-      const backendType = (result.sku_type || 'activity') as string;
+      // Read sku_type from parsed_result (where backend stores it)
+      const backendType = (result.parsed_result?.sku_type || result.sku_type || 'activity') as string;
       const category = backendToFrontendCategory[backendType] || 'Activity';
       const extracted = result.extracted_fields || {};
       const { price, salesPrice } = derivePrice(backendType, extracted);
@@ -233,11 +234,14 @@ const SmartImport: React.FC<SmartImportProps> = ({ onSaveSKU }) => {
       const inclusions = toArray(extracted.inclusions);
       const exclusions = toArray(extracted.exclusions);
 
-      // Determine card background image
+      // Determine card background image - use uploaded file if available
       let cardImage = 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&q=80&w=800';
       if (result.uploaded_file_url) {
-        // Use the uploaded file URL from backend
-        cardImage = result.uploaded_file_url;
+        // Convert backend file path to full URL
+        const baseUrl = window.location.origin;
+        cardImage = result.uploaded_file_url.startsWith('http') 
+          ? result.uploaded_file_url 
+          : `${baseUrl}${result.uploaded_file_url}`;
       } else if (selectedFile?.type?.startsWith('image/') && filePreview) {
         // Fallback to local preview for images
         cardImage = filePreview;
