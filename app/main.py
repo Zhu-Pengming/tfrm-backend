@@ -584,14 +584,15 @@ async def extract_with_ai(
         
         if 'file' in form:
             file = form['file']
-            file_data = await file.read()
+            filename = file.filename
             file_mime_type = file.content_type
-            logger.info(f"  - File received: {file.filename}, type: {file_mime_type}, size: {len(file_data)} bytes")
+            file_data = await file.read()
+            logger.info(f"  - File received: {filename}, type: {file_mime_type}, size: {len(file_data)} bytes")
             
             # Store file locally for use as card background
             if file_data:
                 from io import BytesIO
-                file_path = await storage_client.upload_file(BytesIO(file_data), file.filename, folder="imports")
+                file_path = await storage_client.upload_file(BytesIO(file_data), filename, folder="imports")
                 uploaded_file_url = storage_client.get_file_url(file_path)
                 logger.info(f"  - File stored at: {uploaded_file_url}")
     except Exception as e:
