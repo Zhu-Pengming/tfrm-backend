@@ -44,9 +44,9 @@ export const generateTextBackground = (text: string): string => {
       </defs>
       <rect width="800" height="176" fill="url(#grad${hash})"/>
       <text x="50%" y="50%" dominant-baseline="middle" text-anchor="middle" 
-            font-family="Arial, sans-serif" font-size="48" font-weight="900" 
-            fill="white" opacity="0.25" letter-spacing="2">
-        ${cleanText.toUpperCase().substring(0, 20)}
+            font-family="Arial, sans-serif" font-size="32" font-weight="700" 
+            fill="white" opacity="0.4" letter-spacing="1">
+        ${cleanText.substring(0, 30)}
       </text>
     </svg>
   `;
