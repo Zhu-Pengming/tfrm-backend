@@ -324,7 +324,7 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({ onAddToQuotation, onNav
                 provider: sku.supplier_name || 'Unknown',
                 rating: 4.5,
                 location: finalDestination || '待补充目的地',
-                image: skuImageUrl || posterUrl || 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&q=80&w=800',
+                image: skuImageUrl || posterUrl || '',
                 posterUrl: posterUrl,
                 tags: sku.tags || product.tags || [],
                 isPrivate: sku.owner_type === 'private',
@@ -417,7 +417,7 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({ onAddToQuotation, onNav
             const media = sku.media || [];
             const skuImageUrl = media.find((m: any) => m.url || m.path)?.url || 
                                 media.find((m: any) => m.path)?.path || 
-                                'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&q=80&w=800';
+                                '';
             
             const skuObj: SKU = {
               id: sku.id,
@@ -432,7 +432,7 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({ onAddToQuotation, onNav
               rating: 4.5,
               location: finalDestination || '待补充目的地',
               image: skuImageUrl,
-              posterUrl: skuImageUrl !== 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&q=80&w=800' ? skuImageUrl : undefined,
+              posterUrl: skuImageUrl || undefined,
               tags: sku.tags || [],
               isPrivate: sku.owner_type === 'private',
               priceCalendar: [],
