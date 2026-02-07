@@ -530,7 +530,8 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({ onAddToQuotation, onNav
   const applyBatchMargin = async () => {
     try {
       const { skuAPI } = await import('../../services/api');
-      await skuAPI.batchPricing(Array.from(selectedIds), batchMargin);
+      // 明确传递 margin_percentage 参数
+      await skuAPI.batchPricing(Array.from(selectedIds), batchMargin, undefined, undefined);
       
       const factor = 1 - batchMargin / 100;
       const updateFn = (list: SKU[]) => list.map(sku => selectedIds.has(sku.id) ? {
@@ -542,6 +543,7 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({ onAddToQuotation, onNav
       setSkuList(prev => updateFn(prev));
       setIsBatchMode(false);
       setSelectedIds(new Set());
+      alert(`成功调价 ${selectedIds.size} 个商品`);
     } catch (error) {
       console.error('Failed to batch update pricing:', error);
       alert('批量调价失败，请重试');
@@ -669,6 +671,52 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({ onAddToQuotation, onNav
       <div className="mb-6">
         <ProductFilters activeCategory={activeCategory} onCategoryChange={setActiveCategory} />
       </div>
+
+      {isBatchMode && (
+        <div className="mb-6 bg-gradient-to-r from-amber-50 to-orange-50 border-2 border-amber-200 rounded-2xl p-6">
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-4">
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-slate-700">已选择</span>
+                <span className="px-3 py-1 bg-amber-500 text-white rounded-full text-sm font-black">
+                  {selectedIds.size}
+                </span>
+                <span className="text-sm font-bold text-slate-700">个商品</span>
+              </div>
+              <div className="h-6 w-px bg-amber-300"></div>
+              <div className="flex items-center gap-3">
+                <label className="text-sm font-bold text-slate-700">目标毛利率</label>
+                <input
+                  type="number"
+                  value={batchMargin}
+                  onChange={(e) => setBatchMargin(parseFloat(e.target.value) || 0)}
+                  className="w-24 px-3 py-2 border-2 border-amber-300 rounded-xl text-center font-black text-slate-900 focus:ring-2 focus:ring-amber-400 outline-none"
+                  placeholder="20"
+                />
+                <span className="text-sm font-bold text-slate-700">%</span>
+              </div>
+            </div>
+            <div className="flex items-center gap-3">
+              <button
+                onClick={applyBatchMargin}
+                disabled={selectedIds.size === 0}
+                className="px-6 py-2.5 bg-amber-500 text-white rounded-xl font-bold hover:bg-amber-600 transition-all disabled:opacity-50 disabled:cursor-not-allowed shadow-lg shadow-amber-200"
+              >
+                应用调价
+              </button>
+              <button
+                onClick={() => {
+                  setIsBatchMode(false);
+                  setSelectedIds(new Set());
+                }}
+                className="px-6 py-2.5 bg-white text-slate-600 border-2 border-slate-200 rounded-xl font-bold hover:bg-slate-50 transition-all"
+              >
+                取消
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {filteredData.length > 0 ? (
         viewMode === 'grid' ? (

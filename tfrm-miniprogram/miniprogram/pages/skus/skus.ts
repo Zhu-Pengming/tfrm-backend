@@ -57,7 +57,8 @@ Page({
   },
 
   onCategoryChange(e: any) {
-    this.setData({ selectedCategoryIndex: e.detail.value })
+    const index = parseInt(e.currentTarget.dataset.index)
+    this.setData({ selectedCategoryIndex: index })
     this.loadSkus()
   },
 
