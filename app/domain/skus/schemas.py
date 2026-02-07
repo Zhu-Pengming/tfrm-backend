@@ -285,6 +285,15 @@ def validate_attrs(sku_type: str, attrs: Dict[str, Any]) -> Dict[str, Any]:
     validator_class = ATTRS_VALIDATORS.get(sku_type_enum)
     if not validator_class:
         raise ValueError(f"No validator for sku_type: {sku_type}")
+    
+    # Pre-process: convert string to list for fields that expect lists
+    if sku_type == 'activity' and 'language_service' in attrs:
+        if isinstance(attrs['language_service'], str):
+            attrs['language_service'] = [attrs['language_service']]
+    if sku_type == 'guide' and 'languages' in attrs:
+        if isinstance(attrs['languages'], str):
+            attrs['languages'] = [attrs['languages']]
+    
     validated = validator_class(**attrs)
     result = validated.model_dump(exclude_none=True)
     
