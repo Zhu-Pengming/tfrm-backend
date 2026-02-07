@@ -233,6 +233,16 @@ const SmartImport: React.FC<SmartImportProps> = ({ onSaveSKU }) => {
       const inclusions = toArray(extracted.inclusions);
       const exclusions = toArray(extracted.exclusions);
 
+      // Determine card background image
+      let cardImage = 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&q=80&w=800';
+      if (result.uploaded_file_url) {
+        // Use the uploaded file URL from backend
+        cardImage = result.uploaded_file_url;
+      } else if (selectedFile?.type?.startsWith('image/') && filePreview) {
+        // Fallback to local preview for images
+        cardImage = filePreview;
+      }
+
       setExtractedData({
         id: `ai-${Date.now()}`,
         name: extracted.sku_name || extracted.hotel_name || extracted.activity_name || extracted.restaurant_name || extracted.itinerary_name || 'Unnamed SKU',
@@ -248,7 +258,7 @@ const SmartImport: React.FC<SmartImportProps> = ({ onSaveSKU }) => {
         exclusions,
         cancellationPolicy: extracted.cancellation_policy || extracted.booking_notes || 'See supplier notes',
         categoryAttributes,
-        image: selectedFile?.type?.startsWith('image/') ? filePreview : 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&q=80&w=800',
+        image: cardImage,
         rating: 5.0,
         isPrivate: true,
         tags: normalizeTags(extracted.tags),

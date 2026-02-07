@@ -231,6 +231,7 @@ class ImportTask(Base):
     
     input_text = Column(Text)
     input_files = Column(JSON, default=[])
+    uploaded_file_url = Column(String)
     
     parsed_result = Column(JSON)
     extracted_fields = Column(JSON)

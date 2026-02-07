@@ -570,6 +570,7 @@ async def extract_with_ai(
     input_text = None
     file_data = None
     file_mime_type = None
+    uploaded_file_url = None
     
     # Parse FormData manually
     try:
@@ -586,6 +587,13 @@ async def extract_with_ai(
             file_data = await file.read()
             file_mime_type = file.content_type
             logger.info(f"  - File received: {file.filename}, type: {file_mime_type}, size: {len(file_data)} bytes")
+            
+            # Store file locally for use as card background
+            if file_data:
+                from io import BytesIO
+                file_path = await storage_client.upload_file(BytesIO(file_data), file.filename, folder="imports")
+                uploaded_file_url = storage_client.get_file_url(file_path)
+                logger.info(f"  - File stored at: {uploaded_file_url}")
     except Exception as e:
         logger.error(f"Error parsing form data: {str(e)}")
         raise HTTPException(status_code=400, detail=f"Failed to parse form data: {str(e)}")
@@ -595,7 +603,7 @@ async def extract_with_ai(
         raise HTTPException(status_code=400, detail="Either input_text or file must be provided")
     
     task = await ImportService.extract_with_ai(
-        db, agency_id, user_id, input_text, file_data, file_mime_type
+        db, agency_id, user_id, input_text, file_data, file_mime_type, uploaded_file_url
     )
     
     return task

@@ -247,7 +247,8 @@ class ImportService:
         user_id: str,
         input_text: Optional[str] = None,
         file_data: Optional[bytes] = None,
-        file_mime_type: Optional[str] = None
+        file_mime_type: Optional[str] = None,
+        uploaded_file_url: Optional[str] = None
     ) -> ImportTask:
         """
         Use AI to extract SKU information directly
@@ -263,6 +264,7 @@ class ImportService:
             user_id=user_id,
             status=ImportStatus.PARSING,
             input_text=input_text,
+            uploaded_file_url=uploaded_file_url,
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow()
         )
