@@ -261,6 +261,8 @@ class ImportService:
         Uses Kimi K2.5 with native multimodal support (vision + text)
         """
         from app.infra.llm_client import LLMClient
+        import logging
+        logger = logging.getLogger(__name__)
         
         task_id = f"IMPORT-{uuid.uuid4().hex[:12].upper()}"
         
