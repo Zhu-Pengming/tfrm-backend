@@ -152,20 +152,22 @@ const ProductCard: React.FC<ProductCardProps> = ({
               </div>
             </div>
           </div>
-          <div className="absolute bottom-2 right-2">
+          <div className="absolute bottom-2 left-2 right-2 flex items-center justify-between">
+            <div className="flex items-center gap-2">
+              {attentionLabels.length > 0 && (
+                <div className="flex flex-wrap gap-1">
+                  {attentionLabels.map((label, idx) => (
+                    <span key={idx} className="px-2 py-1 bg-amber-500/90 text-white text-[10px] font-black rounded-lg shadow">
+                      {label}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
             <div className="bg-blue-600 px-2 py-1 rounded-lg shadow-lg border border-blue-500">
               <p className="text-sm font-black text-white leading-none">¥{currentSku.salesPrice}</p>
             </div>
           </div>
-          {attentionLabels.length > 0 && (
-            <div className="absolute bottom-12 left-2 flex flex-wrap gap-1">
-              {attentionLabels.map((label, idx) => (
-                <span key={idx} className="px-2 py-1 bg-amber-500/90 text-white text-[10px] font-black rounded-lg shadow">
-                  {label}
-                </span>
-              ))}
-            </div>
-          )}
         </div>
         
         <div className="p-4 flex flex-col flex-grow">
