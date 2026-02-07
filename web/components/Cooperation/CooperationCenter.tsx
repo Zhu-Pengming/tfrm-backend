@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Cooperation } from '../../types';
+import { API_BASE_URL } from '../../config';
 
 export const CooperationCenter: React.FC = () => {
   const [activeTab, setActiveTab] = useState<'sent' | 'received'>('sent');
@@ -15,7 +16,7 @@ export const CooperationCenter: React.FC = () => {
     setLoading(true);
     try {
       const role = activeTab === 'sent' ? 'consumer' : 'provider';
-      const response = await fetch(`http://localhost:8000/cooperations?role=${role}`, {
+      const response = await fetch(`${API_BASE_URL}/cooperations?role=${role}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         }
@@ -39,7 +40,7 @@ export const CooperationCenter: React.FC = () => {
     if (message === null) return;
 
     try {
-      await fetch(`http://localhost:8000/cooperations/${id}/approve`, {
+      await fetch(`${API_BASE_URL}/cooperations/${id}/approve`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
@@ -59,7 +60,7 @@ export const CooperationCenter: React.FC = () => {
     if (message === null) return;
 
     try {
-      await fetch(`http://localhost:8000/cooperations/${id}/reject`, {
+      await fetch(`${API_BASE_URL}/cooperations/${id}/reject`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
@@ -78,7 +79,7 @@ export const CooperationCenter: React.FC = () => {
     if (!confirm('确认终止此合作关系？')) return;
 
     try {
-      await fetch(`http://localhost:8000/cooperations/${id}/terminate`, {
+      await fetch(`${API_BASE_URL}/cooperations/${id}/terminate`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`

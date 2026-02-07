@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { Notification } from '../../types';
+import { API_BASE_URL } from '../../config';
 
 export const NotificationCenter: React.FC = () => {
   const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -25,7 +26,7 @@ export const NotificationCenter: React.FC = () => {
       if (filter.type) params.append('type', filter.type);
       if (filter.isRead) params.append('is_read', filter.isRead);
 
-      const response = await fetch(`http://localhost:8000/notifications?${params.toString()}`, {
+      const response = await fetch(`${API_BASE_URL}/notifications?${params.toString()}`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         }
@@ -41,7 +42,7 @@ export const NotificationCenter: React.FC = () => {
 
   const loadUnreadCount = async () => {
     try {
-      const response = await fetch('http://localhost:8000/notifications/unread-count', {
+      const response = await fetch(`${API_BASE_URL}/notifications/unread-count`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         }

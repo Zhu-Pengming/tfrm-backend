@@ -1,5 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { SKU, Category } from '../../types';
+import { API_BASE_URL } from '../../config';
 
 interface PublicLibraryBrowserProps {
   onApplyCooperation: (agencyId: string, skuId: string) => void;
@@ -41,7 +42,7 @@ export const PublicLibraryBrowser: React.FC<PublicLibraryBrowserProps> = ({ onAp
       if (filters.tags) params.append('tags', filters.tags);
       if (filters.keyword) params.append('keyword', filters.keyword);
 
-      const response = await fetch(`http://localhost:8000/public-skus?${params.toString()}`, {
+      const response = await fetch(`${API_BASE_URL}/public-skus?${params.toString()}`, {
         headers: {
           Authorization: `Bearer ${localStorage.getItem('auth_token')}`
         }
@@ -127,7 +128,7 @@ export const PublicLibraryBrowser: React.FC<PublicLibraryBrowserProps> = ({ onAp
     if (message === null) return; // 取消
 
     try {
-      const response = await fetch('http://localhost:8000/cooperations', {
+      const response = await fetch(`${API_BASE_URL}/cooperations`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${localStorage.getItem('auth_token')}`,
@@ -154,7 +155,7 @@ export const PublicLibraryBrowser: React.FC<PublicLibraryBrowserProps> = ({ onAp
     }
 
     try {
-      const response = await fetch(`http://localhost:8000/public-skus/${skuId}/copy`, {
+      const response = await fetch(`${API_BASE_URL}/public-skus/${skuId}/copy`, {
         method: 'POST',
         headers: {
           Authorization: `Bearer ${localStorage.getItem('auth_token')}`

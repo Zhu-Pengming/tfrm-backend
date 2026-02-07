@@ -1,6 +1,7 @@
 ﻿import React, { useState, useEffect } from 'react';
 import { NAV_ITEMS } from '../constants';
 import { SidebarTab } from '../types';
+import { API_BASE_URL } from '../config';
 
 interface SidebarProps {
   activeTab: SidebarTab;
@@ -19,7 +20,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, currentUser }
   // 获取未读通知数量
   const fetchUnreadCount = async () => {
     try {
-      const response = await fetch('http://localhost:8000/notifications/unread-count', {
+      const response = await fetch(`${API_BASE_URL}/notifications/unread-count`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         }
@@ -36,7 +37,7 @@ const Sidebar: React.FC<SidebarProps> = ({ activeTab, onTabChange, currentUser }
   // 获取待审核合作数量
   const fetchPendingCooperations = async () => {
     try {
-      const response = await fetch('http://localhost:8000/cooperations?role=provider&status=pending', {
+      const response = await fetch(`${API_BASE_URL}/cooperations?role=provider&status=pending`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         }

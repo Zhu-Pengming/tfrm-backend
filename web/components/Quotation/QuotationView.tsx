@@ -1,6 +1,7 @@
 
 import React, { useState } from 'react';
 import { SKU } from '../../types';
+import { API_BASE_URL } from '../../config';
 
 interface QuotationViewProps {
   items: SKU[];
@@ -20,7 +21,7 @@ const QuotationView: React.FC<QuotationViewProps> = ({ items, onRemove, onBackTo
     setIsCreating(true);
     
     try {
-      const response = await fetch('http://localhost:8000/quotations', {
+      const response = await fetch(`${API_BASE_URL}/quotations`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`,
@@ -63,7 +64,7 @@ const QuotationView: React.FC<QuotationViewProps> = ({ items, onRemove, onBackTo
     }
 
     try {
-      const response = await fetch(`http://localhost:8000/quotations/${qid}/export/pdf`, {
+      const response = await fetch(`${API_BASE_URL}/quotations/${qid}/export/pdf`, {
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
         }
@@ -94,7 +95,7 @@ const QuotationView: React.FC<QuotationViewProps> = ({ items, onRemove, onBackTo
     }
 
     try {
-      const response = await fetch(`http://localhost:8000/quotations/${qid}/share`, {
+      const response = await fetch(`${API_BASE_URL}/quotations/${qid}/share`, {
         method: 'POST',
         headers: {
           'Authorization': `Bearer ${localStorage.getItem('auth_token')}`

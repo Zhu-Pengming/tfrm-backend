@@ -6,6 +6,7 @@ import ProductCard from './ProductCard';
 import ProductEditModal from './ProductEditModal';
 import { Category, SKU, CalendarPrice, Product } from '../../types';
 import { useAuth } from '../../contexts/AuthContext';
+import { API_BASE_URL } from '../../config';
 
 const BACKEND_TO_FRONTEND: Record<string, Category> = {
   // Lowercase variants
@@ -569,7 +570,7 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({ onAddToQuotation, onNav
       
       // 如果当前是私有的，发布到公共库
       if (!sku.isPublic) {
-        const response = await fetch(`http://localhost:8000/skus/${id}/publish`, {
+        const response = await fetch(`${API_BASE_URL}/skus/${id}/publish`, {
           method: 'POST',
           headers: {
             'Authorization': `Bearer ${localStorage.getItem('auth_token')}`
