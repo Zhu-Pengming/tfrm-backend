@@ -13,7 +13,7 @@ class Settings(BaseSettings):
 
     # Environment / security
     app_env: str = "development"  # development / production
-    cors_allowed_origins: str = ""
+    cors_allowed_origins: List[str] = []
     cors_allow_all_in_dev: bool = True
     
     @field_validator('cors_allowed_origins', mode='before')
