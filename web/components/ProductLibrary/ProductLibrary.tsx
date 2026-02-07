@@ -307,6 +307,11 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({ onAddToQuotation, onNav
               const inclusionsFallback = sku.inclusions || attrs.include_items || [];
               const exclusionsFallback = sku.exclusions || attrs.exclude_items || [];
 
+              // Extract image from SKU's own media field if available
+              const skuMedia = sku.media || [];
+              const skuImageUrl = skuMedia.find((m: any) => m.url || m.path)?.url || 
+                                  skuMedia.find((m: any) => m.path)?.path;
+              
               return {
                 id: sku.id,
                 productId: product.id,
@@ -319,7 +324,7 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({ onAddToQuotation, onNav
                 provider: sku.supplier_name || 'Unknown',
                 rating: 4.5,
                 location: finalDestination || '待补充目的地',
-                image: posterUrl || 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&q=80&w=800',
+                image: skuImageUrl || posterUrl || 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&q=80&w=800',
                 posterUrl: posterUrl,
                 tags: sku.tags || product.tags || [],
                 isPrivate: sku.owner_type === 'private',
@@ -332,7 +337,8 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({ onAddToQuotation, onNav
                 categoryAttributes: normalizedAttrs,
                 needsAttention,
                 rawAttrs: attrs,
-                rawExtracted: sku.raw_extracted
+                rawExtracted: sku.raw_extracted,
+                originalFilename: sku.original_filename
               } as SKU;
             });
 
@@ -407,6 +413,12 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({ onAddToQuotation, onNav
             const inclusionsFallback = sku.inclusions || attrs.include_items || [];
             const exclusionsFallback = sku.exclusions || attrs.exclude_items || [];
             
+            // Extract image from media field
+            const media = sku.media || [];
+            const skuImageUrl = media.find((m: any) => m.url || m.path)?.url || 
+                                media.find((m: any) => m.path)?.path || 
+                                'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&q=80&w=800';
+            
             const skuObj: SKU = {
               id: sku.id,
               productId: undefined,
@@ -419,8 +431,8 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({ onAddToQuotation, onNav
               provider: sku.supplier_name || 'Unknown',
               rating: 4.5,
               location: finalDestination || '待补充目的地',
-              image: 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&q=80&w=800',
-              posterUrl: undefined,
+              image: skuImageUrl,
+              posterUrl: skuImageUrl !== 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&q=80&w=800' ? skuImageUrl : undefined,
               tags: sku.tags || [],
               isPrivate: sku.owner_type === 'private',
               priceCalendar: [],
@@ -432,7 +444,8 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({ onAddToQuotation, onNav
               categoryAttributes: normalizedAttrs,
               needsAttention,
               rawAttrs: attrs,
-              rawExtracted: sku.raw_extracted
+              rawExtracted: sku.raw_extracted,
+              originalFilename: sku.original_filename
             };
             
             // Create a virtual product for this standalone SKU
