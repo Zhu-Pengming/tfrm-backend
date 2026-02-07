@@ -158,7 +158,7 @@ const ProductCard: React.FC<ProductCardProps> = ({
             </div>
           </div>
           {attentionLabels.length > 0 && (
-            <div className="absolute top-2 left-2 flex flex-wrap gap-1">
+            <div className="absolute bottom-12 left-2 flex flex-wrap gap-1">
               {attentionLabels.map((label, idx) => (
                 <span key={idx} className="px-2 py-1 bg-amber-500/90 text-white text-[10px] font-black rounded-lg shadow">
                   {label}
