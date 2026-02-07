@@ -399,8 +399,13 @@ class ImportService:
                 after_data={"error": str(e)}
             )
         
-        db.commit()
-        db.refresh(task)
+        try:
+            db.commit()
+            db.refresh(task)
+        except Exception as commit_error:
+            logger.error(f"Database commit/refresh error for task {task_id}: {str(commit_error)}", exc_info=True)
+            db.rollback()
+            raise
         
         return task
 

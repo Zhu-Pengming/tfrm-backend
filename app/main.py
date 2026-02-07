@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Form, Request, BackgroundTasks
+from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Form, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, FileResponse
 from sqlalchemy.orm import Session
@@ -548,84 +548,15 @@ async def upload_import_file(
     }
 
 
-async def _process_extraction_async(
-    task_id: str,
-    agency_id: str,
-    user_id: str,
-    input_text: Optional[str],
-    file_data: Optional[bytes],
-    file_mime_type: Optional[str],
-    uploaded_file_url: Optional[str]
-):
-    """Async function to process AI extraction"""
-    from app.infra.db import SessionLocal, ImportTask, ImportStatus
-    from datetime import datetime
-    
-    db = SessionLocal()
-    try:
-        logger.info(f"Background processing started for task {task_id}")
-        
-        # Call the AI extraction service
-        task = await ImportService.extract_with_ai(
-            db, agency_id, user_id, input_text, file_data, file_mime_type, uploaded_file_url
-        )
-        
-        logger.info(f"Background processing completed for task {task_id}: status={task.status}")
-    except Exception as e:
-        logger.error(f"Background processing failed for task {task_id}: {str(e)}")
-        import traceback
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        
-        # Update task status to failed
-        try:
-            task = db.query(ImportTask).filter(ImportTask.id == task_id).first()
-            if task:
-                task.status = ImportStatus.FAILED
-                task.error_message = str(e)
-                task.updated_at = datetime.utcnow()
-                db.commit()
-        except Exception as db_error:
-            logger.error(f"Failed to update task status: {str(db_error)}")
-    finally:
-        db.close()
-
-
-def _process_extraction_background(
-    task_id: str,
-    agency_id: str,
-    user_id: str,
-    input_text: Optional[str],
-    file_data: Optional[bytes],
-    file_mime_type: Optional[str],
-    uploaded_file_url: Optional[str]
-):
-    """Synchronous wrapper for background task processing"""
-    import asyncio
-    try:
-        # Create new event loop for this thread
-        loop = asyncio.new_event_loop()
-        asyncio.set_event_loop(loop)
-        loop.run_until_complete(
-            _process_extraction_async(
-                task_id, agency_id, user_id, input_text, file_data, file_mime_type, uploaded_file_url
-            )
-        )
-        loop.close()
-    except Exception as e:
-        logger.error(f"Background task wrapper error for {task_id}: {str(e)}")
-
-
 @app.post("/imports/extract", response_model=ImportTaskResponse)
 async def extract_with_ai(
     request: Request,
-    background_tasks: BackgroundTasks,
     current_user: Tuple[str, str, str] = Depends(get_current_user_optional),
     db: Session = Depends(get_db)
 ):
     """
     AI-powered extraction endpoint supporting GetYourGuide 4-layer architecture
     Accepts either text input or file upload (images, PDFs)
-    Returns immediately with task in 'parsing' status - use GET /imports/{task_id} to poll for completion
     """
     logger.info("="*80)
     logger.info("EXTRACT ENDPOINT CALLED")
@@ -672,54 +603,11 @@ async def extract_with_ai(
         logger.error(f"Validation failed - no input_text or file provided")
         raise HTTPException(status_code=400, detail="Either input_text or file must be provided")
     
-    try:
-        # Create task immediately and return it
-        from app.infra.db import ImportStatus, ImportTask
-        import uuid
-        from datetime import datetime
-        
-        task_id = f"IMPORT-{uuid.uuid4().hex[:12].upper()}"
-        
-        task = ImportTask(
-            id=task_id,
-            agency_id=agency_id,
-            user_id=user_id,
-            status=ImportStatus.PARSING,
-            input_text=input_text,
-            uploaded_file_url=uploaded_file_url,
-            created_at=datetime.utcnow(),
-            updated_at=datetime.utcnow()
-        )
-        
-        db.add(task)
-        db.commit()
-        db.refresh(task)
-        
-        logger.info(f"Task created: {task.id}, starting background processing...")
-        
-        # Process in background using FastAPI BackgroundTasks
-        background_tasks.add_task(
-            _process_extraction_background,
-            task_id, agency_id, user_id, input_text, file_data, file_mime_type, uploaded_file_url
-        )
-        
-        return task
-    except Exception as e:
-        logger.error(f"Error creating task: {str(e)}")
-        logger.error(f"Exception type: {type(e).__name__}")
-        import traceback
-        logger.error(f"Traceback: {traceback.format_exc()}")
-        
-        # Provide user-friendly error messages
-        error_detail = str(e)
-        if "API key" in error_detail or "api_key" in error_detail.lower():
-            error_detail = "AI服务配置错误：请联系管理员配置Kimi API密钥"
-        elif "database" in error_detail.lower() or "connection" in error_detail.lower():
-            error_detail = "数据库连接错误，请稍后重试"
-        else:
-            error_detail = f"创建提取任务失败: {error_detail}"
-        
-        raise HTTPException(status_code=500, detail=error_detail)
+    task = await ImportService.extract_with_ai(
+        db, agency_id, user_id, input_text, file_data, file_mime_type, uploaded_file_url
+    )
+    
+    return task
 
 
 @app.post("/quotations", response_model=QuotationResponse)
