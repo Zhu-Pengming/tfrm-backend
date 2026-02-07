@@ -199,6 +199,11 @@ class ImportService:
             "未命名资源"
         )
         
+        # Get media from task's input_files
+        media = []
+        if task.input_files:
+            media = task.input_files
+        
         sku_create = SKUCreate(
             sku_name=sku_name,
             sku_type=sku_type,
@@ -218,7 +223,8 @@ class ImportService:
             highlights=highlights,
             inclusions=inclusions,
             attrs=attrs,
-            raw_extracted=task.extracted_fields
+            raw_extracted=task.extracted_fields,
+            media=media
         )
         
         sku = SKUService.create_sku(db, agency_id, user_id, sku_create)
@@ -258,6 +264,17 @@ class ImportService:
         
         task_id = f"IMPORT-{uuid.uuid4().hex[:12].upper()}"
         
+        # Save uploaded file to storage if provided
+        file_url = None
+        if file_data and original_filename:
+            from app.infra.storage import StorageClient
+            import io
+            storage_client = StorageClient()
+            file_stream = io.BytesIO(file_data)
+            file_path = await storage_client.upload_file(file_stream, original_filename)
+            file_url = storage_client.get_file_url(file_path)
+            logger.info(f"File saved to storage: {file_path}, URL: {file_url}")
+        
         task = ImportTask(
             id=task_id,
             agency_id=agency_id,
@@ -265,6 +282,7 @@ class ImportService:
             status=ImportStatus.PARSING,
             input_text=input_text,
             original_filename=original_filename,
+            input_files=[{"url": file_url, "path": file_url}] if file_url else [],
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow()
         )
