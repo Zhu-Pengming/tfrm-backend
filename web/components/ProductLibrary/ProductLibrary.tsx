@@ -641,7 +641,7 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({ onAddToQuotation, onNav
     <div className="max-w-[1600px] mx-auto py-6 px-8 pb-32">
       <div className="flex items-center justify-between mb-6">
         <div>
-          <h1 className="text-2xl font-black text-slate-900 tracking-tight">产品资源库</h1>
+          <h1 className="text-2xl font-black text-slate-900 tracking-tight">我的私有库</h1>
           <p className="text-xs text-slate-400 font-bold uppercase tracking-widest mt-1">Management Workspace</p>
         </div>
         
@@ -667,7 +667,6 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({ onAddToQuotation, onNav
       </div>
 
       <div className="mb-6">
-        <h2 className="text-2xl font-bold text-slate-900 mb-4">我的私有库</h2>
         <ProductFilters activeCategory={activeCategory} onCategoryChange={setActiveCategory} />
       </div>
 
