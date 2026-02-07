@@ -210,17 +210,10 @@ const SmartImport: React.FC<SmartImportProps> = ({ onSaveSKU }) => {
       return {};
     };
 
-    try {
-      const { importAPI } = await import('../../services/api');
-
-      const result = await importAPI.extract(
-        mode === 'text' ? inputText : undefined,
-        mode === 'file' && selectedFile ? selectedFile : undefined
-      ) as any;
-
+    const processResult = (result: any) => {
       if (!result) throw new Error('No backend response');
       if (result.status === 'failed') throw new Error(result?.error_message || 'Extraction failed');
-      if (result.status !== 'parsed') throw new Error(`Status error: ${result.status}`);
+      if (result.status !== 'parsed') return null; // Still processing
 
       // Debug logging
       console.log('Backend result:', result);
@@ -257,7 +250,7 @@ const SmartImport: React.FC<SmartImportProps> = ({ onSaveSKU }) => {
         }
       }
 
-      setExtractedData({
+      return {
         id: `ai-${Date.now()}`,
         name: extracted.sku_name || extracted.hotel_name || extracted.activity_name || extracted.restaurant_name || extracted.itinerary_name || 'Unnamed SKU',
         category,
@@ -278,14 +271,76 @@ const SmartImport: React.FC<SmartImportProps> = ({ onSaveSKU }) => {
         tags: normalizeTags(extracted.tags),
         rawExtracted: extracted,
         importTaskId: result.id
-      });
+      };
+    };
+
+    try {
+      const { importAPI } = await import('../../services/api');
+
+      // Initial request - returns immediately with task in 'parsing' status
+      const initialResult = await importAPI.extract(
+        mode === 'text' ? inputText : undefined,
+        mode === 'file' && selectedFile ? selectedFile : undefined
+      ) as any;
+
+      if (!initialResult || !initialResult.id) {
+        throw new Error('Failed to create extraction task');
+      }
+
+      console.log('Task created:', initialResult.id, 'Status:', initialResult.status);
+
+      // If already parsed (unlikely but possible), process immediately
+      if (initialResult.status === 'parsed') {
+        const data = processResult(initialResult);
+        if (data) {
+          setExtractedData(data);
+          return;
+        }
+      }
+
+      // Poll for completion
+      const taskId = initialResult.id;
+      const maxAttempts = 60; // 60 attempts * 2 seconds = 2 minutes max
+      let attempts = 0;
+
+      const pollInterval = setInterval(async () => {
+        attempts++;
+        
+        try {
+          const taskResult = await importAPI.get(taskId) as any;
+          console.log(`Poll attempt ${attempts}: status=${taskResult.status}`);
+
+          if (taskResult.status === 'parsed') {
+            clearInterval(pollInterval);
+            const data = processResult(taskResult);
+            if (data) {
+              setExtractedData(data);
+              setIsProcessing(false);
+            }
+          } else if (taskResult.status === 'failed') {
+            clearInterval(pollInterval);
+            throw new Error(taskResult.error_message || 'Extraction failed');
+          } else if (attempts >= maxAttempts) {
+            clearInterval(pollInterval);
+            throw new Error('Extraction timeout - please try again');
+          }
+        } catch (pollErr: any) {
+          clearInterval(pollInterval);
+          console.error('Polling error:', pollErr);
+          setErrorDetail({ 
+            title: '提取失败', 
+            msg: pollErr.message || '无法获取提取结果'
+          });
+          setIsProcessing(false);
+        }
+      }, 2000); // Poll every 2 seconds
+
     } catch (err: any) {
       console.error('AI Error:', err);
       setErrorDetail({ 
         title: '提取失败', 
         msg: err.message || '无法提取文档信息，请检查网络或稍后重试。'
       });
-    } finally {
       setIsProcessing(false);
     }
   };  return (

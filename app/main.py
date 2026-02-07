@@ -548,6 +548,47 @@ async def upload_import_file(
     }
 
 
+async def _process_extraction_background(
+    task_id: str,
+    agency_id: str,
+    user_id: str,
+    input_text: Optional[str],
+    file_data: Optional[bytes],
+    file_mime_type: Optional[str],
+    uploaded_file_url: Optional[str]
+):
+    """Background task to process AI extraction without blocking the HTTP request"""
+    from app.infra.db import SessionLocal, ImportTask
+    from app.domain.imports.schemas import ImportStatus
+    from datetime import datetime
+    
+    db = SessionLocal()
+    try:
+        logger.info(f"Background processing started for task {task_id}")
+        
+        # Call the AI extraction service
+        task = await ImportService.extract_with_ai(
+            db, agency_id, user_id, input_text, file_data, file_mime_type, uploaded_file_url
+        )
+        
+        logger.info(f"Background processing completed for task {task_id}: status={task.status}")
+    except Exception as e:
+        logger.error(f"Background processing failed for task {task_id}: {str(e)}")
+        
+        # Update task status to failed
+        try:
+            task = db.query(ImportTask).filter(ImportTask.id == task_id).first()
+            if task:
+                task.status = ImportStatus.FAILED
+                task.error_message = str(e)
+                task.updated_at = datetime.utcnow()
+                db.commit()
+        except Exception as db_error:
+            logger.error(f"Failed to update task status: {str(db_error)}")
+    finally:
+        db.close()
+
+
 @app.post("/imports/extract", response_model=ImportTaskResponse)
 async def extract_with_ai(
     request: Request,
@@ -557,6 +598,7 @@ async def extract_with_ai(
     """
     AI-powered extraction endpoint supporting GetYourGuide 4-layer architecture
     Accepts either text input or file upload (images, PDFs)
+    Returns immediately with task in 'parsing' status - use GET /imports/{task_id} to poll for completion
     """
     logger.info("="*80)
     logger.info("EXTRACT ENDPOINT CALLED")
@@ -604,14 +646,42 @@ async def extract_with_ai(
         raise HTTPException(status_code=400, detail="Either input_text or file must be provided")
     
     try:
-        logger.info("Calling ImportService.extract_with_ai...")
-        task = await ImportService.extract_with_ai(
-            db, agency_id, user_id, input_text, file_data, file_mime_type, uploaded_file_url
+        # Create task immediately and return it
+        from app.domain.imports.schemas import ImportStatus
+        import uuid
+        from datetime import datetime
+        from app.infra.db import ImportTask
+        
+        task_id = f"IMPORT-{uuid.uuid4().hex[:12].upper()}"
+        
+        task = ImportTask(
+            id=task_id,
+            agency_id=agency_id,
+            user_id=user_id,
+            status=ImportStatus.PARSING,
+            input_text=input_text,
+            uploaded_file_url=uploaded_file_url,
+            created_at=datetime.utcnow(),
+            updated_at=datetime.utcnow()
         )
-        logger.info(f"Task created successfully: {task.id}")
+        
+        db.add(task)
+        db.commit()
+        db.refresh(task)
+        
+        logger.info(f"Task created: {task.id}, starting background processing...")
+        
+        # Process in background using asyncio
+        import asyncio
+        asyncio.create_task(
+            _process_extraction_background(
+                task_id, agency_id, user_id, input_text, file_data, file_mime_type, uploaded_file_url
+            )
+        )
+        
         return task
     except Exception as e:
-        logger.error(f"Error in extract_with_ai: {str(e)}")
+        logger.error(f"Error creating task: {str(e)}")
         logger.error(f"Exception type: {type(e).__name__}")
         import traceback
         logger.error(f"Traceback: {traceback.format_exc()}")
