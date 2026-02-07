@@ -79,9 +79,8 @@ const ProductCard: React.FC<ProductCardProps> = ({
     ? (((currentSku.salesPrice - currentSku.price) / currentSku.salesPrice) * 100).toFixed(1)
     : '0.0';
 
-  // 优先使用实际图片，如果没有图片且有文件名，则生成文本背景
-  const cardImage = currentSku.image || 
-    (currentSku.originalFilename ? generateTextBackground(currentSku.originalFilename) : '');
+  // 优先使用实际图片，如果没有图片则使用SKU名称生成文本背景
+  const cardImage = currentSku.image || generateTextBackground(currentSku.name);
 
   return (
     <>
