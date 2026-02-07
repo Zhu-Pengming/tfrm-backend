@@ -210,18 +210,19 @@ const SmartImport: React.FC<SmartImportProps> = ({ onSaveSKU }) => {
       return {};
     };
 
-    const processResult = (result: any) => {
+    try {
+      const { importAPI } = await import('../../services/api');
+
+      const result = await importAPI.extract(
+        mode === 'text' ? inputText : undefined,
+        mode === 'file' && selectedFile ? selectedFile : undefined
+      ) as any;
+
       if (!result) throw new Error('No backend response');
       if (result.status === 'failed') throw new Error(result?.error_message || 'Extraction failed');
-      if (result.status !== 'parsed') return null; // Still processing
+      if (result.status !== 'parsed') throw new Error(`Status error: ${result.status}`);
 
-      // Debug logging
-      console.log('Backend result:', result);
-      console.log('uploaded_file_url:', result.uploaded_file_url);
-      console.log('parsed_result.sku_type:', result.parsed_result?.sku_type);
-
-      // Read sku_type from parsed_result (where backend stores it)
-      const backendType = (result.parsed_result?.sku_type || result.sku_type || 'activity') as string;
+      const backendType = (result.sku_type || 'activity') as string;
       const category = backendToFrontendCategory[backendType] || 'Activity';
       const extracted = result.extracted_fields || {};
       const { price, salesPrice } = derivePrice(backendType, extracted);
@@ -232,25 +233,17 @@ const SmartImport: React.FC<SmartImportProps> = ({ onSaveSKU }) => {
       const inclusions = toArray(extracted.inclusions);
       const exclusions = toArray(extracted.exclusions);
 
-      // Determine card background image - use uploaded file if available
+      // Determine card background image
       let cardImage = 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&q=80&w=800';
       if (result.uploaded_file_url) {
-        // Convert backend file path to full URL
-        const baseUrl = window.location.origin;
-        cardImage = result.uploaded_file_url.startsWith('http') 
-          ? result.uploaded_file_url 
-          : `${baseUrl}${result.uploaded_file_url}`;
-        console.log('Using uploaded file as card image:', cardImage);
-      } else {
-        console.log('No uploaded_file_url found, using default image');
-        if (selectedFile?.type?.startsWith('image/') && filePreview) {
-          // Fallback to local preview for images
-          cardImage = filePreview;
-          console.log('Using local preview as card image');
-        }
+        // Use the uploaded file URL from backend
+        cardImage = result.uploaded_file_url;
+      } else if (selectedFile?.type?.startsWith('image/') && filePreview) {
+        // Fallback to local preview for images
+        cardImage = filePreview;
       }
 
-      return {
+      setExtractedData({
         id: `ai-${Date.now()}`,
         name: extracted.sku_name || extracted.hotel_name || extracted.activity_name || extracted.restaurant_name || extracted.itinerary_name || 'Unnamed SKU',
         category,
@@ -271,76 +264,14 @@ const SmartImport: React.FC<SmartImportProps> = ({ onSaveSKU }) => {
         tags: normalizeTags(extracted.tags),
         rawExtracted: extracted,
         importTaskId: result.id
-      };
-    };
-
-    try {
-      const { importAPI } = await import('../../services/api');
-
-      // Initial request - returns immediately with task in 'parsing' status
-      const initialResult = await importAPI.extract(
-        mode === 'text' ? inputText : undefined,
-        mode === 'file' && selectedFile ? selectedFile : undefined
-      ) as any;
-
-      if (!initialResult || !initialResult.id) {
-        throw new Error('Failed to create extraction task');
-      }
-
-      console.log('Task created:', initialResult.id, 'Status:', initialResult.status);
-
-      // If already parsed (unlikely but possible), process immediately
-      if (initialResult.status === 'parsed') {
-        const data = processResult(initialResult);
-        if (data) {
-          setExtractedData(data);
-          return;
-        }
-      }
-
-      // Poll for completion
-      const taskId = initialResult.id;
-      const maxAttempts = 300; // 300 attempts * 2 seconds = 10 minutes max (Kimi处理大文件可能需要更长时间)
-      let attempts = 0;
-
-      const pollInterval = setInterval(async () => {
-        attempts++;
-        
-        try {
-          const taskResult = await importAPI.get(taskId) as any;
-          console.log(`Poll attempt ${attempts}: status=${taskResult.status}`);
-
-          if (taskResult.status === 'parsed') {
-            clearInterval(pollInterval);
-            const data = processResult(taskResult);
-            if (data) {
-              setExtractedData(data);
-              setIsProcessing(false);
-            }
-          } else if (taskResult.status === 'failed') {
-            clearInterval(pollInterval);
-            throw new Error(taskResult.error_message || 'Extraction failed');
-          } else if (attempts >= maxAttempts) {
-            clearInterval(pollInterval);
-            throw new Error('AI处理超时（超过10分钟），请稍后重试或联系管理员');
-          }
-        } catch (pollErr: any) {
-          clearInterval(pollInterval);
-          console.error('Polling error:', pollErr);
-          setErrorDetail({ 
-            title: '提取失败', 
-            msg: pollErr.message || '无法获取提取结果'
-          });
-          setIsProcessing(false);
-        }
-      }, 2000); // Poll every 2 seconds
-
+      });
     } catch (err: any) {
       console.error('AI Error:', err);
       setErrorDetail({ 
         title: '提取失败', 
         msg: err.message || '无法提取文档信息，请检查网络或稍后重试。'
       });
+    } finally {
       setIsProcessing(false);
     }
   };  return (
@@ -371,23 +302,7 @@ const SmartImport: React.FC<SmartImportProps> = ({ onSaveSKU }) => {
                   <video ref={videoRef} autoPlay playsInline className="w-full h-full object-cover" />
                 ) : filePreview ? (
                   <div className="w-full h-full relative flex items-center justify-center p-4">
-                    {filePreview === 'PDF_FILE' ? (
-                      <div className="text-center font-black text-slate-400">
-                        <svg className="w-16 h-16 mx-auto mb-4 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M7 21h10a2 2 0 002-2V9.414a1 1 0 00-.293-.707l-5.414-5.414A1 1 0 0012.586 3H7a2 2 0 00-2 2v14a2 2 0 002 2z" />
-                        </svg>
-                        PDF 就绪
-                      </div>
-                    ) : filePreview === 'DOC_FILE' ? (
-                      <div className="text-center font-black text-slate-400">
-                        <svg className="w-16 h-16 mx-auto mb-4 opacity-30" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M9 12h6m-6 4h6m2 5H7a2 2 0 01-2-2V5a2 2 0 012-2h5.586a1 1 0 01.707.293l5.414 5.414a1 1 0 01.293.707V19a2 2 0 01-2 2z" />
-                        </svg>
-                        文档就绪
-                      </div>
-                    ) : (
-                      <img src={filePreview} className="max-h-full max-w-full rounded-2xl object-contain shadow-lg" alt="" />
-                    )}
+                    {filePreview === 'PDF_FILE' ? <div className="text-center font-black text-slate-400">PDF 就绪</div> : <img src={filePreview} className="max-h-full max-w-full rounded-2xl object-contain shadow-lg" alt="" />}
                     <button onClick={() => {setFilePreview(null); setSelectedFile(null); setExtractedData(null);}} className="absolute top-6 right-6 p-2 bg-black/50 text-white rounded-full"><svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" strokeWidth="2.5"/></svg></button>
                   </div>
                 ) : mode === 'text' ? (
