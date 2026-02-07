@@ -685,7 +685,17 @@ async def extract_with_ai(
         logger.error(f"Exception type: {type(e).__name__}")
         import traceback
         logger.error(f"Traceback: {traceback.format_exc()}")
-        raise HTTPException(status_code=500, detail=f"Internal server error: {str(e)}")
+        
+        # Provide user-friendly error messages
+        error_detail = str(e)
+        if "API key" in error_detail or "api_key" in error_detail.lower():
+            error_detail = "AI服务配置错误：请联系管理员配置Kimi API密钥"
+        elif "database" in error_detail.lower() or "connection" in error_detail.lower():
+            error_detail = "数据库连接错误，请稍后重试"
+        else:
+            error_detail = f"创建提取任务失败: {error_detail}"
+        
+        raise HTTPException(status_code=500, detail=error_detail)
 
 
 @app.post("/quotations", response_model=QuotationResponse)

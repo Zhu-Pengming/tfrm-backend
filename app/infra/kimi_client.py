@@ -18,6 +18,9 @@ class KimiClient:
         self.api_key = settings.kimi_api_key
         self.model = settings.kimi_model
         self.base_url = "https://api.moonshot.cn/v1"
+        
+        if not self.api_key:
+            raise ValueError("Kimi API key is not configured. Please set KIMI_API_KEY in .env file")
     
     async def upload_file(self, file_data: bytes, filename: str) -> str:
         """

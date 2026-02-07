@@ -372,8 +372,21 @@ class ImportService:
             )
             
         except Exception as e:
+            logger.error(f"AI extraction failed for task {task_id}: {str(e)}", exc_info=True)
             task.status = ImportStatus.FAILED
-            task.error_message = str(e)
+            
+            # Provide user-friendly error messages
+            error_msg = str(e)
+            if "API key" in error_msg or "api_key" in error_msg.lower():
+                error_msg = "AI服务配置错误：请联系管理员配置Kimi API密钥"
+            elif "timeout" in error_msg.lower():
+                error_msg = "AI服务响应超时，请稍后重试"
+            elif "rate limit" in error_msg.lower():
+                error_msg = "AI服务请求过于频繁，请稍后重试"
+            else:
+                error_msg = f"AI提取失败: {error_msg}"
+            
+            task.error_message = error_msg
             task.updated_at = datetime.utcnow()
             
             audit_log(
