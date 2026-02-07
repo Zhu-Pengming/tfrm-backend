@@ -237,7 +237,10 @@ const SmartImport: React.FC<SmartImportProps> = ({ onSaveSKU }) => {
       let cardImage = 'https://images.unsplash.com/photo-1542314831-068cd1dbfeeb?auto=format&fit=crop&q=80&w=800';
       if (result.uploaded_file_url) {
         // Use the uploaded file URL from backend
-        cardImage = result.uploaded_file_url;
+        // If it's a relative path, prepend the current origin
+        cardImage = result.uploaded_file_url.startsWith('http') 
+          ? result.uploaded_file_url 
+          : `${window.location.origin}${result.uploaded_file_url}`;
       } else if (selectedFile?.type?.startsWith('image/') && filePreview) {
         // Fallback to local preview for images
         cardImage = filePreview;
