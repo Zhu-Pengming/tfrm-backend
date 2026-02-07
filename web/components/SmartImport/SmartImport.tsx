@@ -222,6 +222,11 @@ const SmartImport: React.FC<SmartImportProps> = ({ onSaveSKU }) => {
       if (result.status === 'failed') throw new Error(result?.error_message || 'Extraction failed');
       if (result.status !== 'parsed') throw new Error(`Status error: ${result.status}`);
 
+      // Debug logging
+      console.log('Backend result:', result);
+      console.log('uploaded_file_url:', result.uploaded_file_url);
+      console.log('parsed_result.sku_type:', result.parsed_result?.sku_type);
+
       // Read sku_type from parsed_result (where backend stores it)
       const backendType = (result.parsed_result?.sku_type || result.sku_type || 'activity') as string;
       const category = backendToFrontendCategory[backendType] || 'Activity';
@@ -242,9 +247,14 @@ const SmartImport: React.FC<SmartImportProps> = ({ onSaveSKU }) => {
         cardImage = result.uploaded_file_url.startsWith('http') 
           ? result.uploaded_file_url 
           : `${baseUrl}${result.uploaded_file_url}`;
-      } else if (selectedFile?.type?.startsWith('image/') && filePreview) {
-        // Fallback to local preview for images
-        cardImage = filePreview;
+        console.log('Using uploaded file as card image:', cardImage);
+      } else {
+        console.log('No uploaded_file_url found, using default image');
+        if (selectedFile?.type?.startsWith('image/') && filePreview) {
+          // Fallback to local preview for images
+          cardImage = filePreview;
+          console.log('Using local preview as card image');
+        }
       }
 
       setExtractedData({
