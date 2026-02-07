@@ -778,7 +778,7 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({ onAddToQuotation, onNav
                       </div>
                     </td>
                     <td className="px-6 py-4 text-right">
-                      <p className="text-sm font-black text-slate-400">楼{sku.price}</p>
+                      <p className="text-sm font-black text-slate-400">¥{sku.price}</p>
                     </td>
                     <td className="px-6 py-4 text-right">
                       {editingId === sku.id ? (
@@ -795,7 +795,7 @@ const ProductLibrary: React.FC<ProductLibraryProps> = ({ onAddToQuotation, onNav
                           onClick={() => setEditingId(sku.id)}
                           className="inline-flex items-center gap-2 cursor-pointer hover:bg-blue-50 px-2 py-1 rounded-lg transition-colors group/price"
                         >
-                          <p className="text-sm font-black text-blue-600">楼{sku.salesPrice}</p>
+                          <p className="text-sm font-black text-blue-600">¥{sku.salesPrice}</p>
                           <svg className="w-3 h-3 text-blue-200 group-hover/price:text-blue-400 transition-colors" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z" strokeWidth="2.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                         </div>
                       )}

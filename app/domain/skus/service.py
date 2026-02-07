@@ -1,4 +1,5 @@
 from sqlalchemy.orm import Session
+from sqlalchemy.orm.attributes import flag_modified
 from app.infra.db import SKU, scoped_query, SKUStatus, OwnerType, Product
 from app.domain.skus.schemas import SKUCreate, SKUUpdate, validate_attrs
 from app.infra.audit import audit_log
@@ -303,13 +304,28 @@ class SKUService:
                     new_price = cost_price + add_amount
                 
                 # Update sales price in attrs
+                updated = False
                 for key in ['daily_sell_price', 'sell_price', 'per_person_price']:
                     if key in sku.attrs:
                         sku.attrs[key] = round(new_price, 2)
+                        updated = True
                         break
                 
-                sku.updated_at = datetime.utcnow()
-                updated_count += 1
+                # If no matching key found, try to add to the first available cost key's sell equivalent
+                if not updated:
+                    for cost_key, sell_key in [('daily_cost_price', 'daily_sell_price'), 
+                                                ('cost_price', 'sell_price'),
+                                                ('per_person_price', 'per_person_price')]:
+                        if cost_key in sku.attrs:
+                            sku.attrs[sell_key] = round(new_price, 2)
+                            updated = True
+                            break
+                
+                if updated:
+                    # Mark the attrs field as modified so SQLAlchemy detects the change
+                    flag_modified(sku, 'attrs')
+                    sku.updated_at = datetime.utcnow()
+                    updated_count += 1
         
         db.commit()
         
