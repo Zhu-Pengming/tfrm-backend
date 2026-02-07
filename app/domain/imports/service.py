@@ -199,10 +199,10 @@ class ImportService:
             "未命名资源"
         )
         
-        # Get media from task's input_files
+        # Get media from task's input_files (convert URL strings to dict format)
         media = []
         if task.input_files:
-            media = task.input_files
+            media = [{"url": url, "path": url} for url in task.input_files]
         
         sku_create = SKUCreate(
             sku_name=sku_name,
@@ -284,7 +284,7 @@ class ImportService:
             status=ImportStatus.PARSING,
             input_text=input_text,
             original_filename=original_filename,
-            input_files=[{"url": file_url, "path": file_url}] if file_url else [],
+            input_files=[file_url] if file_url else [],
             created_at=datetime.utcnow(),
             updated_at=datetime.utcnow()
         )
