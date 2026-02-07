@@ -596,11 +596,14 @@ async def extract_with_ai(
         logger.error(f"Validation failed - no input_text or file provided")
         raise HTTPException(status_code=400, detail="Either input_text or file must be provided")
     
-    task = await ImportService.extract_with_ai(
-        db, agency_id, user_id, input_text, file_data, file_mime_type, original_filename
-    )
-    
-    return task
+    try:
+        task = await ImportService.extract_with_ai(
+            db, agency_id, user_id, input_text, file_data, file_mime_type, original_filename
+        )
+        return task
+    except Exception as e:
+        logger.error(f"Error in extract_with_ai: {str(e)}", exc_info=True)
+        raise HTTPException(status_code=500, detail=f"Extraction failed: {str(e)}")
 
 
 @app.post("/quotations", response_model=QuotationResponse)

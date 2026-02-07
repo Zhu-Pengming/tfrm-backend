@@ -19,8 +19,8 @@ class KimiClient:
         self.model = settings.kimi_model
         self.base_url = "https://api.moonshot.cn/v1"
         
-        if not self.api_key:
-            raise ValueError("Kimi API key is not configured. Please set KIMI_API_KEY in .env file")
+        if not self.api_key or self.api_key == "your-kimi-api-key-here":
+            raise ValueError("Kimi API key is not configured. Please set a valid KIMI_API_KEY in .env file")
     
     async def upload_file(self, file_data: bytes, filename: str) -> str:
         """
@@ -39,37 +39,46 @@ class KimiClient:
         print(f"  - Size: {len(file_data)} bytes")
         print(f"{'='*80}\n")
         
-        async with httpx.AsyncClient(timeout=600.0) as client:
-            files = {
-                'file': (filename, file_data)
-            }
-            response = await client.post(
-                f"{self.base_url}/files",
-                headers={
-                    "Authorization": f"Bearer {self.api_key}"
-                },
-                files=files
-            )
-            
-            if response.status_code not in (200, 201):
-                error_detail = response.text
+        try:
+            async with httpx.AsyncClient(timeout=600.0) as client:
+                files = {
+                    'file': (filename, file_data)
+                }
+                response = await client.post(
+                    f"{self.base_url}/files",
+                    headers={
+                        "Authorization": f"Bearer {self.api_key}"
+                    },
+                    files=files
+                )
+                
+                if response.status_code not in (200, 201):
+                    error_detail = response.text
+                    print(f"\n{'='*80}")
+                    print(f"KIMI FILE UPLOAD ERROR:")
+                    print(f"  Status: {response.status_code}")
+                    print(f"  Detail: {error_detail}")
+                    print(f"  URL: {self.base_url}/files")
+                    print(f"  Filename: {filename}")
+                    print(f"{'='*80}\n")
+                    raise Exception(f"Kimi file upload failed (HTTP {response.status_code}): {error_detail}")
+                
+                result = response.json()
+                file_id = result.get('id')
+                
                 print(f"\n{'='*80}")
-                print(f"KIMI FILE UPLOAD ERROR:")
-                print(f"  Status: {response.status_code}")
-                print(f"  Detail: {error_detail}")
+                print(f"KIMI FILE UPLOAD SUCCESS:")
+                print(f"  - File ID: {file_id}")
+                print(f"  - Filename: {result.get('filename')}")
                 print(f"{'='*80}\n")
-                raise Exception(f"Kimi file upload error ({response.status_code}): {error_detail}")
-            
-            result = response.json()
-            file_id = result.get('id')
-            
-            print(f"\n{'='*80}")
-            print(f"KIMI FILE UPLOAD SUCCESS:")
-            print(f"  - File ID: {file_id}")
-            print(f"  - Filename: {result.get('filename')}")
-            print(f"{'='*80}\n")
-            
-            return file_id
+                
+                return file_id
+        except httpx.TimeoutException as e:
+            raise Exception(f"Kimi file upload timeout: Request took longer than 600 seconds")
+        except httpx.NetworkError as e:
+            raise Exception(f"Kimi file upload network error: {str(e)}")
+        except httpx.HTTPError as e:
+            raise Exception(f"Kimi file upload HTTP error: {str(e)}")
     
     async def get_file(self, file_id: str) -> Dict[str, Any]:
         """
@@ -228,46 +237,55 @@ class KimiClient:
         print(f"  - File contents extracted: {len(file_contents)}")
         print(f"{'='*80}\n")
         
-        async with httpx.AsyncClient(timeout=600.0) as client:
-            response = await client.post(
-                f"{self.base_url}/chat/completions",
-                headers={
-                    "Authorization": f"Bearer {self.api_key}",
-                    "Content-Type": "application/json"
-                },
-                json={
-                    "model": self.model,
-                    "messages": messages,
-                    "temperature": 0.6,
-                    "thinking": {"type": "disabled"},
-                    "response_format": {"type": "json_object"}
-                }
-            )
-            
-            if response.status_code != 200:
-                error_detail = response.text
+        try:
+            async with httpx.AsyncClient(timeout=600.0) as client:
+                response = await client.post(
+                    f"{self.base_url}/chat/completions",
+                    headers={
+                        "Authorization": f"Bearer {self.api_key}",
+                        "Content-Type": "application/json"
+                    },
+                    json={
+                        "model": self.model,
+                        "messages": messages,
+                        "temperature": 0.6,
+                        "thinking": {"type": "disabled"},
+                        "response_format": {"type": "json_object"}
+                    }
+                )
+                
+                if response.status_code != 200:
+                    error_detail = response.text
+                    print(f"\n{'='*80}")
+                    print(f"KIMI API ERROR:")
+                    print(f"  Status: {response.status_code}")
+                    print(f"  Detail: {error_detail}")
+                    print(f"  Model: {self.model}")
+                    print(f"  URL: {self.base_url}/chat/completions")
+                    print(f"{'='*80}\n")
+                    raise Exception(f"Kimi API request failed (HTTP {response.status_code}): {error_detail}")
+                
+                result = response.json()
+                
+                if "choices" not in result or not result["choices"]:
+                    raise Exception("No response from Kimi API")
+                
+                content = result["choices"][0]["message"]["content"]
+                parsed_result = json.loads(content)
+                
                 print(f"\n{'='*80}")
-                print(f"KIMI API ERROR:")
-                print(f"  Status: {response.status_code}")
-                print(f"  Detail: {error_detail}")
+                print(f"KIMI EXTRACTION SUCCESS:")
+                print(f"  - SKU Type: {parsed_result.get('sku_type', 'unknown')}")
+                print(f"  - Fields extracted: {len(parsed_result.get('extracted_fields', {}))}")
                 print(f"{'='*80}\n")
-                raise Exception(f"Kimi API error ({response.status_code}): {error_detail}")
-            
-            result = response.json()
-            
-            if "choices" not in result or not result["choices"]:
-                raise Exception("No response from Kimi API")
-            
-            content = result["choices"][0]["message"]["content"]
-            parsed_result = json.loads(content)
-            
-            print(f"\n{'='*80}")
-            print(f"KIMI EXTRACTION SUCCESS:")
-            print(f"  - SKU Type: {parsed_result.get('sku_type', 'unknown')}")
-            print(f"  - Fields extracted: {len(parsed_result.get('extracted_fields', {}))}")
-            print(f"{'='*80}\n")
-            
-            return parsed_result
+                
+                return parsed_result
+        except httpx.TimeoutException as e:
+            raise Exception(f"Kimi API timeout: Request took longer than 600 seconds")
+        except httpx.NetworkError as e:
+            raise Exception(f"Kimi API network error: {str(e)}")
+        except httpx.HTTPError as e:
+            raise Exception(f"Kimi API HTTP error: {str(e)}")
     
     def _build_content_parts(
         self, 
