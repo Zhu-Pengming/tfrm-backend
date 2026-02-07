@@ -1,4 +1,4 @@
-from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Form, Request
+from fastapi import FastAPI, Depends, HTTPException, status, UploadFile, File, Form, Request, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import StreamingResponse, FileResponse
 from sqlalchemy.orm import Session
@@ -558,8 +558,7 @@ async def _process_extraction_background(
     uploaded_file_url: Optional[str]
 ):
     """Background task to process AI extraction without blocking the HTTP request"""
-    from app.infra.db import SessionLocal, ImportTask
-    from app.domain.imports.schemas import ImportStatus
+    from app.infra.db import SessionLocal, ImportTask, ImportStatus
     from datetime import datetime
     
     db = SessionLocal()
@@ -592,6 +591,7 @@ async def _process_extraction_background(
 @app.post("/imports/extract", response_model=ImportTaskResponse)
 async def extract_with_ai(
     request: Request,
+    background_tasks: BackgroundTasks,
     current_user: Tuple[str, str, str] = Depends(get_current_user_optional),
     db: Session = Depends(get_db)
 ):
@@ -670,12 +670,10 @@ async def extract_with_ai(
         
         logger.info(f"Task created: {task.id}, starting background processing...")
         
-        # Process in background using asyncio
-        import asyncio
-        asyncio.create_task(
-            _process_extraction_background(
-                task_id, agency_id, user_id, input_text, file_data, file_mime_type, uploaded_file_url
-            )
+        # Process in background using FastAPI BackgroundTasks
+        background_tasks.add_task(
+            _process_extraction_background,
+            task_id, agency_id, user_id, input_text, file_data, file_mime_type, uploaded_file_url
         )
         
         return task
