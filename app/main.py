@@ -647,10 +647,9 @@ async def extract_with_ai(
     
     try:
         # Create task immediately and return it
-        from app.domain.imports.schemas import ImportStatus
+        from app.infra.db import ImportStatus, ImportTask
         import uuid
         from datetime import datetime
-        from app.infra.db import ImportTask
         
         task_id = f"IMPORT-{uuid.uuid4().hex[:12].upper()}"
         
