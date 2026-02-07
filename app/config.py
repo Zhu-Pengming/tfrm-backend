@@ -1,5 +1,7 @@
 from pydantic_settings import BaseSettings
 from functools import lru_cache
+from typing import List
+from pydantic import field_validator
 
 
 class Settings(BaseSettings):
@@ -11,8 +13,17 @@ class Settings(BaseSettings):
 
     # Environment / security
     app_env: str = "development"  # development / production
-    cors_allowed_origins: list[str] = []
+    cors_allowed_origins: str = ""
     cors_allow_all_in_dev: bool = True
+    
+    @field_validator('cors_allowed_origins', mode='before')
+    @classmethod
+    def parse_cors_origins(cls, v):
+        if isinstance(v, str):
+            if not v or v.strip() == "":
+                return []
+            return [origin.strip() for origin in v.split(',') if origin.strip()]
+        return v
     
     llm_provider: str = "kimi"
     kimi_api_key: str = ""
