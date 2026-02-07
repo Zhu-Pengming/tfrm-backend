@@ -548,7 +548,7 @@ async def upload_import_file(
     }
 
 
-async def _process_extraction_background(
+async def _process_extraction_async(
     task_id: str,
     agency_id: str,
     user_id: str,
@@ -557,7 +557,7 @@ async def _process_extraction_background(
     file_mime_type: Optional[str],
     uploaded_file_url: Optional[str]
 ):
-    """Background task to process AI extraction without blocking the HTTP request"""
+    """Async function to process AI extraction"""
     from app.infra.db import SessionLocal, ImportTask, ImportStatus
     from datetime import datetime
     
@@ -573,6 +573,8 @@ async def _process_extraction_background(
         logger.info(f"Background processing completed for task {task_id}: status={task.status}")
     except Exception as e:
         logger.error(f"Background processing failed for task {task_id}: {str(e)}")
+        import traceback
+        logger.error(f"Traceback: {traceback.format_exc()}")
         
         # Update task status to failed
         try:
@@ -586,6 +588,31 @@ async def _process_extraction_background(
             logger.error(f"Failed to update task status: {str(db_error)}")
     finally:
         db.close()
+
+
+def _process_extraction_background(
+    task_id: str,
+    agency_id: str,
+    user_id: str,
+    input_text: Optional[str],
+    file_data: Optional[bytes],
+    file_mime_type: Optional[str],
+    uploaded_file_url: Optional[str]
+):
+    """Synchronous wrapper for background task processing"""
+    import asyncio
+    try:
+        # Create new event loop for this thread
+        loop = asyncio.new_event_loop()
+        asyncio.set_event_loop(loop)
+        loop.run_until_complete(
+            _process_extraction_async(
+                task_id, agency_id, user_id, input_text, file_data, file_mime_type, uploaded_file_url
+            )
+        )
+        loop.close()
+    except Exception as e:
+        logger.error(f"Background task wrapper error for {task_id}: {str(e)}")
 
 
 @app.post("/imports/extract", response_model=ImportTaskResponse)
