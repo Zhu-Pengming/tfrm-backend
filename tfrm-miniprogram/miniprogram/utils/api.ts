@@ -571,6 +571,165 @@ class ApiService {
       data: { file_url: fileUrl }
     })
   }
+
+  // ========== 公共库模块 ==========
+  listPublicSkus(params?: {
+    keyword?: string
+    city?: string
+    tags?: string
+    sku_type?: string
+    limit?: number
+    offset?: number
+  }) {
+    const queryParts: string[] = []
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== '') {
+          queryParts.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
+        }
+      })
+    }
+    const queryString = queryParts.join('&')
+    return this.request<any[]>({
+      url: `/public-skus${queryString ? '?' + queryString : ''}`,
+      method: 'GET'
+    })
+  }
+
+  getPublicSkuDetail(skuId: string) {
+    return this.request<any>({
+      url: `/public-skus/${skuId}`,
+      method: 'GET'
+    })
+  }
+
+  copyPublicSkuToPrivate(skuId: string) {
+    return this.request<{ message: string; sku_id: string }>({
+      url: `/public-skus/${skuId}/copy`,
+      method: 'POST'
+    })
+  }
+
+  publishSkuToPublic(skuId: string) {
+    return this.request<{ message: string }>({
+      url: `/skus/${skuId}/publish`,
+      method: 'POST'
+    })
+  }
+
+  unpublishSku(skuId: string) {
+    return this.request<{ message: string }>({
+      url: `/skus/${skuId}/unpublish`,
+      method: 'POST'
+    })
+  }
+
+  removeSkuFromPrivate(skuId: string) {
+    return this.request<{ message: string }>({
+      url: `/skus/${skuId}/remove-from-private`,
+      method: 'POST'
+    })
+  }
+
+  // ========== 合作管理模块 ==========
+  listCooperations(params?: {
+    role?: 'consumer' | 'provider'
+    status?: string
+    limit?: number
+    offset?: number
+  }) {
+    const queryParts: string[] = []
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== '') {
+          queryParts.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
+        }
+      })
+    }
+    const queryString = queryParts.join('&')
+    return this.request<any[]>({
+      url: `/cooperations${queryString ? '?' + queryString : ''}`,
+      method: 'GET'
+    })
+  }
+
+  getCooperation(cooperationId: string) {
+    return this.request<any>({
+      url: `/cooperations/${cooperationId}`,
+      method: 'GET'
+    })
+  }
+
+  applyCooperation(data: {
+    to_agency_id: string
+    request_message?: string
+  }) {
+    return this.request<{ id: string; message: string }>({
+      url: '/cooperations',
+      method: 'POST',
+      data
+    })
+  }
+
+  approveCooperation(cooperationId: string, responseMessage?: string) {
+    return this.request<{ message: string }>({
+      url: `/cooperations/${cooperationId}/approve`,
+      method: 'POST',
+      data: { response_message: responseMessage || '' }
+    })
+  }
+
+  rejectCooperation(cooperationId: string, responseMessage?: string) {
+    return this.request<{ message: string }>({
+      url: `/cooperations/${cooperationId}/reject`,
+      method: 'POST',
+      data: { response_message: responseMessage || '' }
+    })
+  }
+
+  terminateCooperation(cooperationId: string) {
+    return this.request<{ message: string }>({
+      url: `/cooperations/${cooperationId}/terminate`,
+      method: 'POST'
+    })
+  }
+
+  // ========== 通知模块 ==========
+  listNotifications(params?: {
+    type?: string
+    is_read?: boolean
+    limit?: number
+    offset?: number
+  }) {
+    const queryParts: string[] = []
+    if (params) {
+      Object.entries(params).forEach(([key, value]) => {
+        if (value !== undefined && value !== '') {
+          queryParts.push(`${encodeURIComponent(key)}=${encodeURIComponent(String(value))}`)
+        }
+      })
+    }
+    const queryString = queryParts.join('&')
+    return this.request<any[]>({
+      url: `/notifications${queryString ? '?' + queryString : ''}`,
+      method: 'GET'
+    })
+  }
+
+  getUnreadNotificationCount() {
+    return this.request<{ count: number }>({
+      url: '/notifications/unread-count',
+      method: 'GET'
+    })
+  }
+
+  markNotificationsAsRead(notificationIds: string[]) {
+    return this.request<{ message: string }>({
+      url: '/notifications/mark-read',
+      method: 'POST',
+      data: { notification_ids: notificationIds }
+    })
+  }
 }
 
 export default new ApiService()

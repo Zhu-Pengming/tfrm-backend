@@ -1,0 +1,7 @@
+{
+  "navigationBarTitleText": "公共库",
+  "navigationBarBackgroundColor": "#667eea",
+  "navigationBarTextStyle": "white",
+  "enablePullDownRefresh": true,
+  "backgroundTextStyle": "dark"
+}

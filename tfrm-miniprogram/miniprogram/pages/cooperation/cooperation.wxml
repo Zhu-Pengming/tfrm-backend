@@ -1,0 +1,116 @@
+<view class="container">
+  <!-- Tab 切换 -->
+  <view class="tabs">
+    <view 
+      class="tab {{activeTab === 'sent' ? 'active' : ''}}"
+      bindtap="switchTab"
+      data-tab="sent"
+    >
+      <text class="tab-text">我发起的</text>
+      <text class="tab-count">({{sentCount}})</text>
+    </view>
+    <view 
+      class="tab {{activeTab === 'received' ? 'active' : ''}}"
+      bindtap="switchTab"
+      data-tab="received"
+    >
+      <text class="tab-text">收到的申请</text>
+      <view class="tab-badge-wrapper">
+        <text class="tab-count">({{receivedCount}})</text>
+        <text wx:if="{{pendingCount > 0}}" class="badge">{{pendingCount}}</text>
+      </view>
+    </view>
+  </view>
+
+  <!-- 合作列表 -->
+  <scroll-view scroll-y class="cooperation-list" enable-back-to-top>
+    <view 
+      wx:for="{{cooperationList}}" 
+      wx:key="id" 
+      class="cooperation-card"
+    >
+      <view class="card-header">
+        <view class="agency-info">
+          <text class="agency-icon">🏢</text>
+          <view class="agency-details">
+            <text class="agency-name">
+              {{activeTab === 'sent' ? item.to_agency_name : item.from_agency_name}}
+            </text>
+            <text class="time">{{item.created_at}}</text>
+          </view>
+        </view>
+        <view class="status-badge status-{{item.status}}">
+          {{statusMap[item.status]}}
+        </view>
+      </view>
+
+      <view wx:if="{{item.request_message}}" class="message-block">
+        <view class="message-label">
+          <text class="label-icon">💬</text>
+          <text class="label-text">申请说明</text>
+        </view>
+        <text class="message-content">{{item.request_message}}</text>
+      </view>
+
+      <view wx:if="{{item.response_message}}" class="message-block">
+        <view class="message-label">
+          <text class="label-icon">💭</text>
+          <text class="label-text">回复</text>
+        </view>
+        <text class="message-content">{{item.response_message}}</text>
+      </view>
+
+      <!-- 操作按钮 -->
+      <view class="actions">
+        <!-- 待审核状态 - 收到的申请 -->
+        <block wx:if="{{activeTab === 'received' && item.status === 'pending'}}">
+          <button 
+            class="btn-action btn-approve"
+            bindtap="onApprove"
+            data-id="{{item.id}}"
+          >
+            ✓ 通过
+          </button>
+          <button 
+            class="btn-action btn-reject"
+            bindtap="onReject"
+            data-id="{{item.id}}"
+          >
+            ✕ 拒绝
+          </button>
+        </block>
+
+        <!-- 已通过状态 - 可终止 -->
+        <block wx:if="{{item.status === 'approved'}}">
+          <button 
+            class="btn-action btn-terminate"
+            bindtap="onTerminate"
+            data-id="{{item.id}}"
+          >
+            终止合作
+          </button>
+        </block>
+
+        <!-- 查看详情 -->
+        <button 
+          class="btn-action btn-detail"
+          bindtap="onViewDetail"
+          data-id="{{item.id}}"
+        >
+          详情
+        </button>
+      </view>
+    </view>
+
+    <view wx:if="{{loading}}" class="loading">
+      <view class="loading-spinner"></view>
+      <text>加载中...</text>
+    </view>
+
+    <view wx:if="{{!loading && cooperationList.length === 0}}" class="empty">
+      <image class="empty-icon" src="/assets/icons/empty.png" mode="aspectFit" />
+      <text class="empty-text">暂无{{activeTab === 'sent' ? '发起的' : '收到的'}}合作申请</text>
+      <text wx:if="{{activeTab === 'sent'}}" class="empty-hint">前往公共库浏览资源并申请合作</text>
+    </view>
+  </scroll-view>
+</view>

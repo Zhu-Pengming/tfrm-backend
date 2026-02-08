@@ -5,6 +5,9 @@
     "pages/import-detail/import-detail",
     "pages/skus/skus",
     "pages/sku-detail/sku-detail",
+    "pages/public-library/public-library",
+    "pages/cooperation/cooperation",
+    "pages/notifications/notifications",
     "pages/quotation/quotation",
     "pages/quotation-edit/quotation-edit",
     "pages/publish-success/publish-success",
@@ -13,9 +16,9 @@
   ],
   "tabBar": {
     "color": "#666666",
-    "selectedColor": "#1890ff",
+    "selectedColor": "#667eea",
     "backgroundColor": "#ffffff",
-    "borderStyle": "black",
+    "borderStyle": "white",
     "fontSize": 14,
     "list": [
       {
@@ -24,15 +27,19 @@
       },
       {
         "pagePath": "pages/skus/skus",
-        "text": "资源库"
+        "text": "私有库"
       },
       {
-        "pagePath": "pages/quotation/quotation",
-        "text": "报价"
+        "pagePath": "pages/public-library/public-library",
+        "text": "公共库"
       },
       {
-        "pagePath": "pages/vendor/vendor",
-        "text": "供应商"
+        "pagePath": "pages/cooperation/cooperation",
+        "text": "合作"
+      },
+      {
+        "pagePath": "pages/notifications/notifications",
+        "text": "通知"
       }
     ]
   },

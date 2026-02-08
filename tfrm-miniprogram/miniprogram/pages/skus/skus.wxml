@@ -109,7 +109,18 @@
         <view class="sku-type-badge type-{{item.sku_type}}">
           {{typeLabels[item.sku_type] || item.sku_type}}
         </view>
-        <view wx:if="{{item.needsAttention}}" class="attention-badge">⚠️</view>
+        <view class="header-badges">
+          <view wx:if="{{item.is_from_cooperation}}" class="source-badge cooperation">
+            🤝 合作
+          </view>
+          <view wx:elif="{{item.is_published}}" class="source-badge published">
+            🌐 已发布
+          </view>
+          <view wx:else class="source-badge private">
+            🔒 私有
+          </view>
+          <view wx:if="{{item.needsAttention}}" class="attention-badge">⚠️</view>
+        </view>
       </view>
 
       <view class="card-body" bindtap="handleViewDetail" data-sku-id="{{item.id}}">
@@ -153,6 +164,13 @@
           data-sku="{{item}}"
         >
           加入报价
+        </button>
+        <button 
+          class="btn-more" 
+          catchtap="handleMoreActions"
+          data-sku="{{item}}"
+        >
+          ⋯
         </button>
       </view>
     </view>

@@ -352,5 +352,149 @@ Page({
         icon: 'error'
       })
     }
+  },
+
+  async handlePublishToPublic(e: any) {
+    const skuId = e.currentTarget.dataset.skuId
+    const skuName = e.currentTarget.dataset.skuName
+    
+    const confirmed = await new Promise<boolean>((resolve) => {
+      wx.showModal({
+        title: '发布到公共库',
+        content: `确定将「${skuName}」发布到公共库？发布后其他机构可以看到此资源并申请合作。`,
+        confirmText: '发布',
+        success: (res) => resolve(res.confirm)
+      })
+    })
+
+    if (!confirmed) return
+
+    try {
+      wx.showLoading({ title: '发布中...' })
+      await api.publishSkuToPublic(skuId)
+      wx.hideLoading()
+      wx.showToast({
+        title: '发布成功',
+        icon: 'success'
+      })
+      this.loadSkus()
+    } catch (error) {
+      wx.hideLoading()
+      console.error('发布失败', error)
+      wx.showToast({
+        title: '发布失败',
+        icon: 'none'
+      })
+    }
+  },
+
+  async handleUnpublish(e: any) {
+    const skuId = e.currentTarget.dataset.skuId
+    const skuName = e.currentTarget.dataset.skuName
+    
+    const confirmed = await new Promise<boolean>((resolve) => {
+      wx.showModal({
+        title: '取消发布',
+        content: `确定取消发布「${skuName}」？取消后其他机构将无法看到此资源。`,
+        confirmText: '取消发布',
+        success: (res) => resolve(res.confirm)
+      })
+    })
+
+    if (!confirmed) return
+
+    try {
+      wx.showLoading({ title: '处理中...' })
+      await api.unpublishSku(skuId)
+      wx.hideLoading()
+      wx.showToast({
+        title: '已取消发布',
+        icon: 'success'
+      })
+      this.loadSkus()
+    } catch (error) {
+      wx.hideLoading()
+      console.error('取消发布失败', error)
+      wx.showToast({
+        title: '操作失败',
+        icon: 'none'
+      })
+    }
+  },
+
+  async handleRemoveFromPrivate(e: any) {
+    const skuId = e.currentTarget.dataset.skuId
+    const skuName = e.currentTarget.dataset.skuName
+    
+    const confirmed = await new Promise<boolean>((resolve) => {
+      wx.showModal({
+        title: '移出私有库',
+        content: `确定将「${skuName}」移出私有库？移出后此资源将不再显示在私有库中，但仍可在公共库查看。`,
+        confirmText: '移出',
+        success: (res) => resolve(res.confirm)
+      })
+    })
+
+    if (!confirmed) return
+
+    try {
+      wx.showLoading({ title: '处理中...' })
+      await api.removeSkuFromPrivate(skuId)
+      wx.hideLoading()
+      wx.showToast({
+        title: '已移出',
+        icon: 'success'
+      })
+      this.loadSkus()
+    } catch (error) {
+      wx.hideLoading()
+      console.error('移出失败', error)
+      wx.showToast({
+        title: '操作失败',
+        icon: 'none'
+      })
+    }
+  },
+
+  handleMoreActions(e: any) {
+    const sku = e.currentTarget.dataset.sku
+    const isFromCooperation = sku.is_from_cooperation
+    const isPublished = sku.is_published
+    
+    const itemList: string[] = []
+    
+    if (!isFromCooperation) {
+      if (!isPublished) {
+        itemList.push('发布到公共库')
+      } else {
+        itemList.push('取消发布')
+      }
+    }
+    
+    if (isFromCooperation) {
+      itemList.push('移出私有库')
+    }
+    
+    itemList.push('编辑')
+    itemList.push('删除')
+    
+    wx.showActionSheet({
+      itemList,
+      success: (res) => {
+        const action = itemList[res.tapIndex]
+        
+        if (action === '发布到公共库') {
+          this.handlePublishToPublic({ currentTarget: { dataset: { skuId: sku.id, skuName: sku.sku_name } } })
+        } else if (action === '取消发布') {
+          this.handleUnpublish({ currentTarget: { dataset: { skuId: sku.id, skuName: sku.sku_name } } })
+        } else if (action === '移出私有库') {
+          this.handleRemoveFromPrivate({ currentTarget: { dataset: { skuId: sku.id, skuName: sku.sku_name } } })
+        } else if (action === '编辑') {
+          this.handleEditSku({ currentTarget: { dataset: { sku } } })
+        } else if (action === '删除') {
+          this.handleDeleteSku({ currentTarget: { dataset: { skuId: sku.id } } })
+        }
+      }
+    })
   }
 })

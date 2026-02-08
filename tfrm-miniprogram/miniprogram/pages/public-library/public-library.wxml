@@ -1,0 +1,150 @@
+<view class="container">
+  <!-- 搜索栏 -->
+  <view class="search-bar">
+    <view class="search-input-wrapper">
+      <image class="search-icon" src="/assets/icons/search.png" mode="aspectFit" />
+      <input 
+        class="search-input"
+        placeholder="搜索公共库资源" 
+        bindinput="onSearchInput"
+        value="{{searchKeyword}}"
+        confirm-type="search"
+        bindconfirm="onSearch"
+      />
+      <text wx:if="{{searchKeyword}}" class="clear-btn" bindtap="onClearSearch">✕</text>
+    </view>
+    <button class="search-btn" bindtap="onSearch">搜索</button>
+  </view>
+
+  <!-- 筛选器 -->
+  <view class="filters">
+    <picker 
+      mode="selector" 
+      range="{{categoryOptions}}" 
+      value="{{categoryIndex}}"
+      bindchange="onCategoryChange"
+    >
+      <view class="filter-item">
+        <text class="filter-label">类型</text>
+        <text class="filter-value">{{categoryOptions[categoryIndex]}}</text>
+        <text class="arrow">▼</text>
+      </view>
+    </picker>
+    
+    <picker 
+      mode="selector" 
+      range="{{cityOptions}}" 
+      value="{{cityIndex}}"
+      bindchange="onCityChange"
+    >
+      <view class="filter-item">
+        <text class="filter-label">城市</text>
+        <text class="filter-value">{{cityOptions[cityIndex]}}</text>
+        <text class="arrow">▼</text>
+      </view>
+    </picker>
+  </view>
+
+  <!-- SKU 列表 -->
+  <scroll-view 
+    scroll-y 
+    class="sku-list"
+    bindscrolltolower="loadMore"
+    lower-threshold="100"
+  >
+    <view 
+      wx:for="{{skuList}}" 
+      wx:key="id" 
+      class="sku-card"
+      bindtap="onSKUTap"
+      data-id="{{item.id}}"
+    >
+      <view class="sku-header">
+        <text class="sku-name">{{item.sku_name}}</text>
+        <view class="sku-type-badge type-{{item.sku_type}}">
+          {{typeMap[item.sku_type] || item.sku_type}}
+        </view>
+      </view>
+      
+      <view class="sku-info">
+        <view class="info-row">
+          <text class="info-icon">📍</text>
+          <text class="info-text">{{item.destination_city || item.destination_country}}</text>
+        </view>
+        <view class="info-row">
+          <text class="info-icon">🏢</text>
+          <text class="info-text">{{item.agency_name || '供应商'}}</text>
+        </view>
+      </view>
+      
+      <view wx:if="{{item.tags && item.tags.length > 0}}" class="sku-tags">
+        <text 
+          wx:for="{{item.tags}}" 
+          wx:key="index" 
+          wx:for-item="tag"
+          class="tag"
+        >
+          {{tag}}
+        </text>
+      </view>
+      
+      <view class="sku-footer">
+        <view class="price-info">
+          <text wx:if="{{item.cooperation_status === 'approved'}}" class="price">
+            ¥{{item.sell_price || item.cost_price}}
+          </text>
+          <text wx:else class="price-locked">
+            <text class="lock-icon">🔒</text>
+            需合作查看价格
+          </text>
+        </view>
+        
+        <view class="actions">
+          <button 
+            wx:if="{{item.cooperation_status !== 'approved' && item.cooperation_status !== 'pending'}}"
+            class="btn-apply"
+            bindtap="onApplyCooperation"
+            data-agency-id="{{item.agency_id}}"
+            data-agency-name="{{item.agency_name}}"
+            catchtap="stopPropagation"
+          >
+            申请合作
+          </button>
+          
+          <button 
+            wx:elif="{{item.cooperation_status === 'pending'}}"
+            class="btn-pending"
+            disabled
+          >
+            审核中
+          </button>
+          
+          <button 
+            wx:else
+            class="btn-copy"
+            bindtap="onCopySKU"
+            data-id="{{item.id}}"
+            data-name="{{item.sku_name}}"
+            catchtap="stopPropagation"
+          >
+            复制到私有库
+          </button>
+        </view>
+      </view>
+    </view>
+    
+    <view wx:if="{{loading}}" class="loading">
+      <view class="loading-spinner"></view>
+      <text>加载中...</text>
+    </view>
+    
+    <view wx:if="{{!loading && !hasMore && skuList.length > 0}}" class="no-more">
+      没有更多了
+    </view>
+    
+    <view wx:if="{{!loading && skuList.length === 0}}" class="empty">
+      <image class="empty-icon" src="/assets/icons/empty.png" mode="aspectFit" />
+      <text class="empty-text">暂无公共库资源</text>
+    </view>
+  </scroll-view>
+</view>

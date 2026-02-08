@@ -411,3 +411,338 @@
   color: #2563EB;
   font-weight: 600;
 }
+
+/* 分层结构预览样式 */
+.structured-preview-section {
+  background: #ffffff;
+  border-radius: 24rpx;
+  padding: 28rpx 32rpx;
+  margin-bottom: 24rpx;
+  box-shadow: 0 2rpx 8rpx rgba(15, 23, 42, 0.04);
+}
+
+.section-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 20rpx;
+}
+
+.toggle-btn {
+  font-size: 24rpx;
+  color: #667eea;
+  font-weight: 600;
+}
+
+.preview-card {
+  background: #F8FAFC;
+  border-radius: 16rpx;
+  padding: 24rpx;
+  margin-bottom: 16rpx;
+  border: 2rpx solid #E2E8F0;
+}
+
+.preview-card.core-info {
+  background: linear-gradient(135deg, #EFF6FF 0%, #DBEAFE 100%);
+  border-color: #93C5FD;
+}
+
+.card-name {
+  display: block;
+  font-size: 32rpx;
+  font-weight: 700;
+  color: #0F172A;
+  margin-bottom: 12rpx;
+}
+
+.card-meta {
+  display: flex;
+  align-items: center;
+  gap: 16rpx;
+}
+
+.type-badge {
+  padding: 6rpx 16rpx;
+  border-radius: 20rpx;
+  font-size: 22rpx;
+  font-weight: 600;
+}
+
+.type-badge.type-hotel {
+  background: #DBEAFE;
+  color: #1E40AF;
+}
+
+.type-badge.type-car {
+  background: #FEF3C7;
+  color: #92400E;
+}
+
+.type-badge.type-ticket {
+  background: #F3E8FF;
+  color: #6B21A8;
+}
+
+.type-badge.type-guide {
+  background: #D1FAE5;
+  color: #065F46;
+}
+
+.type-badge.type-restaurant {
+  background: #FCE7F3;
+  color: #9F1239;
+}
+
+.type-badge.type-activity {
+  background: #FEF3C7;
+  color: #78350F;
+}
+
+.type-badge.type-itinerary {
+  background: #CFFAFE;
+  color: #155E75;
+}
+
+.location {
+  font-size: 24rpx;
+  color: #64748B;
+}
+
+.preview-card.price-info {
+  background: #ffffff;
+}
+
+.price-row {
+  display: flex;
+  gap: 16rpx;
+}
+
+.price-item {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding: 16rpx;
+  background: #F8FAFC;
+  border-radius: 12rpx;
+}
+
+.price-label {
+  font-size: 22rpx;
+  color: #64748B;
+  margin-bottom: 8rpx;
+}
+
+.price-value {
+  font-size: 28rpx;
+  font-weight: 700;
+}
+
+.price-value.cost {
+  color: #DC2626;
+}
+
+.price-value.sales {
+  color: #059669;
+}
+
+.price-value.margin {
+  color: #2563EB;
+}
+
+.preview-card.highlights {
+  background: #ffffff;
+}
+
+.card-title {
+  display: block;
+  font-size: 26rpx;
+  font-weight: 700;
+  color: #0F172A;
+  margin-bottom: 16rpx;
+}
+
+.highlight-list {
+  display: flex;
+  flex-direction: column;
+  gap: 12rpx;
+}
+
+.highlight-item {
+  display: flex;
+  align-items: flex-start;
+  gap: 12rpx;
+}
+
+.bullet {
+  color: #667eea;
+  font-size: 24rpx;
+  font-weight: 700;
+  line-height: 1.5;
+}
+
+.highlight-text {
+  flex: 1;
+  font-size: 24rpx;
+  color: #334155;
+  line-height: 1.6;
+}
+
+.preview-card.category-attrs {
+  background: linear-gradient(135deg, #1E293B 0%, #0F172A 100%);
+  color: #ffffff;
+}
+
+.preview-card.category-attrs .card-title {
+  color: #F1F5F9;
+}
+
+.attrs-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 16rpx;
+}
+
+.attr-item {
+  display: flex;
+  flex-direction: column;
+}
+
+.attr-label {
+  font-size: 20rpx;
+  color: #94A3B8;
+  margin-bottom: 6rpx;
+  text-transform: uppercase;
+}
+
+.attr-value {
+  font-size: 24rpx;
+  font-weight: 600;
+  color: #F8FAFC;
+}
+
+.preview-row {
+  display: flex;
+  gap: 16rpx;
+}
+
+.preview-row .preview-card {
+  flex: 1;
+}
+
+.preview-card.inclusions {
+  background: #ECFDF5;
+  border-color: #6EE7B7;
+}
+
+.preview-card.inclusions .card-title {
+  color: #065F46;
+}
+
+.preview-card.exclusions {
+  background: #FEF3C7;
+  border-color: #FCD34D;
+}
+
+.preview-card.exclusions .card-title {
+  color: #92400E;
+}
+
+.item-list {
+  display: flex;
+  flex-direction: column;
+  gap: 8rpx;
+}
+
+.item {
+  font-size: 22rpx;
+  color: #334155;
+  line-height: 1.5;
+}
+
+.preview-card.policy {
+  background: #FEF3C7;
+  border-color: #FCD34D;
+}
+
+.preview-card.policy .card-title {
+  color: #92400E;
+}
+
+.policy-text {
+  font-size: 24rpx;
+  color: #78350F;
+  line-height: 1.6;
+}
+
+.pricing-details-section,
+.raw-data-section {
+  margin-top: 20rpx;
+  padding-top: 20rpx;
+  border-top: 2rpx solid #E2E8F0;
+}
+
+.pricing-content {
+  margin-top: 16rpx;
+}
+
+.pricing-table {
+  background: #F8FAFC;
+  border-radius: 12rpx;
+  padding: 20rpx;
+  margin-bottom: 16rpx;
+}
+
+.table-title {
+  display: block;
+  font-size: 26rpx;
+  font-weight: 700;
+  color: #0F172A;
+  margin-bottom: 16rpx;
+}
+
+.room-item,
+.dining-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 12rpx 0;
+  border-bottom: 1rpx solid #E2E8F0;
+}
+
+.room-item:last-child,
+.dining-item:last-child {
+  border-bottom: none;
+}
+
+.room-name,
+.dining-type {
+  font-size: 24rpx;
+  color: #334155;
+  font-weight: 600;
+}
+
+.room-breakfast {
+  font-size: 22rpx;
+  color: #059669;
+  background: #D1FAE5;
+  padding: 4rpx 12rpx;
+  border-radius: 8rpx;
+}
+
+.raw-data-content {
+  margin-top: 16rpx;
+  background: #F8FAFC;
+  border-radius: 12rpx;
+  padding: 20rpx;
+  max-height: 600rpx;
+  overflow-y: auto;
+}
+
+.raw-data-text {
+  font-size: 22rpx;
+  color: #334155;
+  font-family: monospace;
+  line-height: 1.6;
+  word-break: break-all;
+}

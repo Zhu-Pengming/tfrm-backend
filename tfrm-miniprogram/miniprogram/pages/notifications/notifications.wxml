@@ -1,0 +1,79 @@
+<view class="container">
+  <!-- 头部 -->
+  <view class="header">
+    <view class="header-left">
+      <text class="title">通知中心</text>
+      <view wx:if="{{unreadCount > 0}}" class="unread-badge">
+        {{unreadCount}}条未读
+      </view>
+    </view>
+    <button class="btn-mark-all" bindtap="onMarkAllRead">
+      全部已读
+    </button>
+  </view>
+
+  <!-- 筛选器 -->
+  <view class="filters">
+    <picker 
+      mode="selector" 
+      range="{{typeOptions}}" 
+      value="{{typeIndex}}"
+      bindchange="onTypeChange"
+    >
+      <view class="filter-item">
+        <text class="filter-label">类型</text>
+        <text class="filter-value">{{typeOptions[typeIndex]}}</text>
+        <text class="arrow">▼</text>
+      </view>
+    </picker>
+    
+    <picker 
+      mode="selector" 
+      range="{{statusOptions}}" 
+      value="{{statusIndex}}"
+      bindchange="onStatusChange"
+    >
+      <view class="filter-item">
+        <text class="filter-label">状态</text>
+        <text class="filter-value">{{statusOptions[statusIndex]}}</text>
+        <text class="arrow">▼</text>
+      </view>
+    </picker>
+  </view>
+
+  <!-- 通知列表 -->
+  <scroll-view scroll-y class="notification-list" enable-back-to-top>
+    <view 
+      wx:for="{{notifications}}" 
+      wx:key="id" 
+      class="notification-item {{item.is_read ? '' : 'unread'}}"
+      bindtap="onNotificationTap"
+      data-id="{{item.id}}"
+      data-type="{{item.type}}"
+      data-is-read="{{item.is_read}}"
+    >
+      <view class="icon-wrapper type-{{item.type}}">
+        <text class="icon">{{typeIcons[item.type]}}</text>
+      </view>
+      
+      <view class="content">
+        <view class="title-row">
+          <text class="title">{{item.title}}</text>
+          <text wx:if="{{!item.is_read}}" class="unread-dot"></text>
+        </view>
+        <text class="message">{{item.content}}</text>
+        <text class="time">{{item.created_at}}</text>
+      </view>
+    </view>
+
+    <view wx:if="{{loading}}" class="loading">
+      <view class="loading-spinner"></view>
+      <text>加载中...</text>
+    </view>
+
+    <view wx:if="{{!loading && notifications.length === 0}}" class="empty">
+      <image class="empty-icon" src="/assets/icons/empty.png" mode="aspectFit" />
+      <text class="empty-text">暂无通知</text>
+    </view>
+  </scroll-view>
+</view>

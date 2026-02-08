@@ -86,7 +86,124 @@
 
     </view>
 
+    <!-- 分层结构预览 -->
+    <view wx:if="{{structuredData && showStructuredPreview}}" class="structured-preview-section">
+      <view class="section-header">
+        <text class="section-title">分层结构预览</text>
+        <text class="toggle-btn" bindtap="toggleStructuredPreview">收起</text>
+      </view>
 
+      <!-- 核心信息卡片 -->
+      <view class="preview-card core-info">
+        <text class="card-name">{{structuredData.name}}</text>
+        <view class="card-meta">
+          <view class="type-badge type-{{structuredData.type}}">{{structuredData.typeLabel}}</view>
+          <text class="location">📍 {{structuredData.location}}</text>
+        </view>
+      </view>
+
+      <!-- 价格信息 -->
+      <view class="preview-card price-info">
+        <view class="price-row">
+          <view class="price-item">
+            <text class="price-label">成本价</text>
+            <text class="price-value cost">¥{{structuredData.costPrice}}</text>
+          </view>
+          <view class="price-item">
+            <text class="price-label">销售价</text>
+            <text class="price-value sales">¥{{structuredData.salesPrice}}</text>
+          </view>
+          <view class="price-item">
+            <text class="price-label">毛利率</text>
+            <text class="price-value margin">{{structuredData.profitMargin}}%</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 亮点列表 -->
+      <view wx:if="{{structuredData.highlights.length > 0}}" class="preview-card highlights">
+        <text class="card-title">✨ 亮点提取</text>
+        <view class="highlight-list">
+          <view wx:for="{{structuredData.highlights}}" wx:key="index" class="highlight-item">
+            <text class="bullet">•</text>
+            <text class="highlight-text">{{item}}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 行业专属参数 -->
+      <view wx:if="{{structuredData.categoryAttributes}}" class="preview-card category-attrs">
+        <text class="card-title">🎯 行业专属参数</text>
+        <view class="attrs-grid">
+          <block wx:for="{{structuredData.categoryAttributes}}" wx:for-item="value" wx:for-index="key" wx:key="key">
+            <view wx:if="{{value}}" class="attr-item">
+              <text class="attr-label">{{key}}</text>
+              <text class="attr-value">{{value}}</text>
+            </view>
+          </block>
+        </view>
+      </view>
+
+      <!-- 包含/排除项 -->
+      <view class="preview-row">
+        <view wx:if="{{structuredData.inclusions.length > 0}}" class="preview-card inclusions">
+          <text class="card-title">✓ 包含内容</text>
+          <view class="item-list">
+            <text wx:for="{{structuredData.inclusions}}" wx:key="index" class="item">✓ {{item}}</text>
+          </view>
+        </view>
+        <view wx:if="{{structuredData.exclusions.length > 0}}" class="preview-card exclusions">
+          <text class="card-title">✕ 不包含</text>
+          <view class="item-list">
+            <text wx:for="{{structuredData.exclusions}}" wx:key="index" class="item">✕ {{item}}</text>
+          </view>
+        </view>
+      </view>
+
+      <!-- 退改政策 -->
+      <view class="preview-card policy">
+        <text class="card-title">📋 退改政策</text>
+        <text class="policy-text">{{structuredData.cancellationPolicy}}</text>
+      </view>
+
+      <!-- 详细价格表 -->
+      <view wx:if="{{structuredData.pricingDetails.roomTypes.length > 0 || structuredData.pricingDetails.diningOptions.length > 0}}" class="pricing-details-section">
+        <view class="section-header">
+          <text class="section-title">📊 详细价格表</text>
+          <text class="toggle-btn" bindtap="togglePricingDetails">{{showPricingDetails ? '收起' : '展开'}}</text>
+        </view>
+        
+        <view wx:if="{{showPricingDetails}}" class="pricing-content">
+          <!-- 房型价格表 -->
+          <view wx:if="{{structuredData.pricingDetails.roomTypes.length > 0}}" class="pricing-table">
+            <text class="table-title">🏨 房型价格</text>
+            <view wx:for="{{structuredData.pricingDetails.roomTypes}}" wx:key="index" class="room-item">
+              <text class="room-name">{{item.room_type_name}}</text>
+              <text class="room-breakfast">{{item.include_breakfast ? '含早' : '不含早'}}</text>
+            </view>
+          </view>
+
+          <!-- 餐饮价格表 -->
+          <view wx:if="{{structuredData.pricingDetails.diningOptions.length > 0}}" class="pricing-table">
+            <text class="table-title">🍽️ 餐饮价格</text>
+            <view wx:for="{{structuredData.pricingDetails.diningOptions}}" wx:key="index" class="dining-item">
+              <text class="dining-type">{{item.meal_type}}</text>
+            </view>
+          </view>
+        </view>
+      </view>
+
+      <!-- 完整提取数据 -->
+      <view class="raw-data-section">
+        <view class="section-header">
+          <text class="section-title">🔍 完整提取数据</text>
+          <text class="toggle-btn" bindtap="toggleRawData">{{showRawData ? '收起' : '展开'}}</text>
+        </view>
+        <view wx:if="{{showRawData}}" class="raw-data-content">
+          <text class="raw-data-text">{{structuredData.rawExtracted}}</text>
+        </view>
+      </view>
+    </view>
 
     <view class="fields-section">
 
