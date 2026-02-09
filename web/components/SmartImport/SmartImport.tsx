@@ -235,7 +235,19 @@ const SmartImport: React.FC<SmartImportProps> = ({ onSaveSKU }) => {
       const categoryAttributes = buildCategoryAttributes(backendType, extracted);
 
       const location = [extracted.destination_country, extracted.destination_city].filter(Boolean).join(' ');
-      const highlights = toArray(extracted.highlights);
+      
+      // Handle highlights - convert structured objects to strings if needed
+      let highlights = toArray(extracted.highlights);
+      if (highlights.length > 0 && typeof highlights[0] === 'object' && highlights[0].title) {
+        // Structured highlights with icon, title, description
+        highlights = highlights.map((h: any) => `${h.title}: ${h.description}`);
+      }
+      
+      // Use experience_highlights as fallback if available
+      if (!highlights.length && extracted.experience_highlights) {
+        highlights = toArray(extracted.experience_highlights);
+      }
+      
       const inclusions = toArray(extracted.inclusions);
       const exclusions = toArray(extracted.exclusions);
 
