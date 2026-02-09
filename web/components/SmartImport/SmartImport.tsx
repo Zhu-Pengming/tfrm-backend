@@ -248,7 +248,12 @@ const SmartImport: React.FC<SmartImportProps> = ({ onSaveSKU }) => {
         highlights = toArray(extracted.experience_highlights);
       }
       
-      const inclusions = toArray(extracted.inclusions);
+      // Map included_services to inclusions if inclusions is empty
+      let inclusions = toArray(extracted.inclusions);
+      if (!inclusions.length && extracted.included_services) {
+        inclusions = toArray(extracted.included_services);
+      }
+      
       const exclusions = toArray(extracted.exclusions);
 
       setExtractedData({

@@ -548,14 +548,16 @@ class KimiClient:
     ]
   - highlights: 行程卖点/亮点数组（从图片中蓝色图标区域提取），结构：
     [
-      {{"icon": "✈️", "title": "精选航空", "description": "中国国航飞，升级1段内陆飞机，轻松舒适"}},
+      {{"icon": "✈️", "title": "精选航空", "description": "中国国航执飞，升级1段内陆飞机，轻松舒适"}},
       {{"icon": "🏠", "title": "尊享体验", "description": "全程五星酒店×棉花堡温泉酒店×伊斯坦布尔升级国际五星特色酒店+特色洞穴酒店"}},
       {{"icon": "🎁", "title": "独家赠送", "description": "每人1台转换插头+行李牌+2人共享1台随身WIFI"}}
     ]
   - experience_highlights: 体验亮点数组（从文字描述区域提取的详细卖点）
-  - included_services: 包含服务数组（如"精选航空"、"尊享质量"、"携家赠送"）
+  - inclusions: 费用包含数组（从highlights和included_services中提取具体包含的服务项目）
+  - exclusions: 费用不含数组（如果明确说明不含某些项目）
+  - included_services: 包含服务数组（从蓝色图标区域提取的服务说明）
   - tags: 标签数组（从图片中提取，如"浪漫"、"臻选"、"纯玩无购物"等）
-  - supplier_name: 供应商名称（如有）
+  - supplier_name: 供应商名称（如图片中有旅行社名称、品牌logo等，否则设为null）
   - booking_notes: 预订说明（如"南京起止"、"纯玩无购物"、"免签"等）
   
   **行程重要提示：**
