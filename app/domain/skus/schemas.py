@@ -191,7 +191,7 @@ class ItineraryAttrs(BaseModel):
     depart_city: str
     arrive_city: Optional[str] = None
     itinerary_type: Optional[str] = None
-    departure_dates: Optional[List[date]] = None
+    departure_dates: Optional[List[Any]] = None  # Can be List[date] or List[Dict] with date/price/currency/notes
     min_pax: Optional[int] = None
     max_pax: Optional[int] = None
     route_stops: Optional[List[str]] = None
