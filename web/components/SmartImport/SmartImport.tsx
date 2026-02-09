@@ -227,7 +227,8 @@ const SmartImport: React.FC<SmartImportProps> = ({ onSaveSKU }) => {
       if (result.status === 'failed') throw new Error(result?.error_message || 'Extraction failed');
       if (result.status !== 'parsed') throw new Error(`Status error: ${result.status}`);
 
-      const backendType = (result.sku_type || 'activity') as string;
+      // Extract sku_type from parsed_result first, then fall back to root level
+      const backendType = (result.parsed_result?.sku_type || result.sku_type || 'activity') as string;
       const category = backendToFrontendCategory[backendType] || 'Activity';
       const extracted = result.extracted_fields || {};
       const { price, salesPrice } = derivePrice(backendType, extracted);

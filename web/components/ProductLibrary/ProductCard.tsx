@@ -190,8 +190,8 @@ const ProductCard: React.FC<ProductCardProps> = ({
             <div className="relative h-64 shrink-0">
               <img src={currentSku.image} alt="" className="w-full h-full object-cover" />
               <div className="absolute inset-0 bg-gradient-to-t from-white via-white/10 to-transparent"></div>
-              <button onClick={() => setShowModal(false)} className="absolute top-8 right-8 p-3 bg-white/20 hover:bg-white/40 text-white rounded-full backdrop-blur-xl transition-all border border-white/20">
-                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24"><path d="M6 18L18 6M6 6l12 12" strokeWidth="3"/></svg>
+              <button onClick={() => setShowModal(false)} className="absolute top-8 right-8 p-3 bg-slate-900/60 hover:bg-slate-900/80 text-white rounded-full backdrop-blur-xl transition-all border-2 border-white/30 shadow-lg">
+                <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24" strokeLinecap="round" strokeLinejoin="round"><path d="M6 18L18 6M6 6l12 12" strokeWidth="2.5"/></svg>
               </button>
               <div className="absolute bottom-8 left-12">
                  <h2 className="text-4xl font-black text-slate-900 tracking-tight mb-2">{currentSku.productTitle || currentSku.name}</h2>
