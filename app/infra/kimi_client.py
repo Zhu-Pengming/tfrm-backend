@@ -183,31 +183,15 @@ class KimiClient:
         Returns:
             Structured extraction result with extracted_fields, confidence, evidence
         """
-        # Separate image file_ids from document file_ids
-        # For images: use file reference in chat API
-        # For documents (PDF/DOCX): extract content as text
-        image_file_ids = []
+        # Extract file contents if file_ids provided
         file_contents = []
-        
         if file_ids:
             for file_id in file_ids:
                 try:
-                    # Get file info to determine type
-                    file_info = await self.get_file(file_id)
-                    filename = file_info.get('filename', '').lower()
-                    
-                    # Check if it's an image based on extension
-                    if any(filename.endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']):
-                        # For images, keep file_id for reference in chat
-                        image_file_ids.append(file_id)
-                        print(f"Image file detected: {filename}, will use file reference")
-                    else:
-                        # For documents, extract content
-                        content = await self.get_file_content(file_id)
-                        file_contents.append(content)
-                        print(f"Document file detected: {filename}, extracted {len(content)} chars")
+                    content = await self.get_file_content(file_id)
+                    file_contents.append(content)
                 except Exception as e:
-                    print(f"Warning: Failed to process file {file_id}: {str(e)}")
+                    print(f"Warning: Failed to extract content from file {file_id}: {str(e)}")
                     continue
         
         # Merge file contents with input text
@@ -217,7 +201,7 @@ class KimiClient:
         
         prompt = self._build_extraction_prompt(combined_text)
         
-        # Build multimodal messages with file references for images
+        # Build multimodal messages (now without file_ids, using extracted content)
         messages = [
             {"role": "system", "content": """你是 Kimi，一个专业的旅游资源数据提取助手。
 
@@ -312,22 +296,12 @@ class KimiClient:
     ) -> List[Dict[str, Any]]:
         """
         Build multimodal content parts for Kimi K2.5
-        Supports: text + images (base64 encoded) + file references
+        Supports: text + images (base64 encoded)
+        Note: file_ids are not used here as Kimi doesn't support 'file' type in chat messages
         """
         parts = []
         
-        # Add file references for uploaded images (preferred method - avoids timeout)
-        if file_ids:
-            for file_id in file_ids:
-                parts.append({
-                    "type": "file",
-                    "file_url": {
-                        "url": f"file://{file_id}"
-                    }
-                })
-                print(f"  - Added file reference: {file_id}")
-        
-        # Add images as base64 (fallback for non-Kimi providers or direct image data)
+        # Add images as base64
         if images:
             for img_data in images:
                 try:

@@ -301,46 +301,40 @@ class ImportService:
             print(f"LLM PROVIDER: {settings.llm_provider}")
             print(f"{'='*80}\n")
             
-            # For Kimi provider: use file upload API for PDF/DOCX/images
+            # For Kimi provider: handle images and documents differently
             if settings.llm_provider == "kimi" and file_data and file_mime_type:
                 from app.infra.kimi_client import KimiClient
                 
-                # Determine filename from mime type
-                if file_mime_type == 'application/pdf':
-                    filename = "document.pdf"
-                elif file_mime_type in ('application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword'):
-                    filename = "document.docx"
-                elif file_mime_type.startswith('image/'):
-                    ext = file_mime_type.split('/')[-1]
-                    # Handle common image extensions
-                    if ext == 'jpeg':
-                        ext = 'jpg'
-                    filename = f"image.{ext}"
-                else:
-                    filename = "file"
-                
-                kimi_client = KimiClient()
-                
-                logger.info(f"Uploading file to Kimi: {filename}, size: {len(file_data)} bytes, mime: {file_mime_type}")
-                
-                # Upload file to Kimi (works for PDF, DOCX, and images)
-                file_id = await kimi_client.upload_file(file_data, filename)
-                
-                # Verify file upload (optional but recommended)
-                file_info = await kimi_client.get_file(file_id)
-                logger.info(f"Kimi file uploaded: {file_info.get('filename')} (status: {file_info.get('status')})")
-                
-                # For images, use vision API; for documents, extract content
                 if file_mime_type.startswith('image/'):
-                    # Use Kimi's vision capabilities with file reference
+                    # For images: pass binary data directly for base64 encoding
+                    logger.info(f"Processing image: {file_mime_type}, size: {len(file_data)} bytes")
                     llm_client = LLMClient()
                     result = await llm_client.parse_sku_input(
                         input_text=input_text or "",
-                        images=None,
-                        file_ids=[file_id]
+                        images=[{
+                            'data': file_data,
+                            'mime_type': file_mime_type
+                        }],
+                        file_ids=None
                     )
                 else:
-                    # For PDF/DOCX, extract content and pass as text
+                    # For PDF/DOCX: upload to Kimi and extract text content
+                    if file_mime_type == 'application/pdf':
+                        filename = "document.pdf"
+                    elif file_mime_type in ('application/vnd.openxmlformats-officedocument.wordprocessingml.document', 'application/msword'):
+                        filename = "document.docx"
+                    else:
+                        filename = "file"
+                    
+                    kimi_client = KimiClient()
+                    logger.info(f"Uploading document to Kimi: {filename}, size: {len(file_data)} bytes")
+                    
+                    # Upload file to Kimi
+                    file_id = await kimi_client.upload_file(file_data, filename)
+                    file_info = await kimi_client.get_file(file_id)
+                    logger.info(f"Kimi file uploaded: {file_info.get('filename')} (status: {file_info.get('status')})")
+                    
+                    # Extract content and pass as text
                     llm_client = LLMClient()
                     result = await llm_client.parse_sku_input(
                         input_text=input_text or "",
