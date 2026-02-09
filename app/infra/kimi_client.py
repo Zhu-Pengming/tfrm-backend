@@ -226,7 +226,7 @@ class KimiClient:
 - 图片是旅游海报，却识别为hotel类型 ← 类型错误！
 
 违反以上规则将被视为严重错误，必须重新提取。"""},
-            {"role": "user", "content": self._build_content_parts(prompt, images, image_file_ids)}
+            {"role": "user", "content": self._build_content_parts(prompt, images, None)}
         ]
         
         print(f"\n{'='*80}")
@@ -234,7 +234,6 @@ class KimiClient:
         print(f"  - Model: {self.model}")
         print(f"  - Combined text length: {len(combined_text)}")
         print(f"  - Images: {len(images) if images else 0}")
-        print(f"  - Image file IDs: {len(image_file_ids)}")
         print(f"  - File contents extracted: {len(file_contents)}")
         print(f"{'='*80}\n")
         
