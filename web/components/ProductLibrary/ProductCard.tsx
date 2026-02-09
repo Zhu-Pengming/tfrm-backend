@@ -247,36 +247,64 @@ const ProductCard: React.FC<ProductCardProps> = ({
                        </section>
                      )}
 
-                     <section>
+                     {/* Price Tiers for Itineraries */}
+                    {currentSku.rawExtracted?.price_tiers && currentSku.rawExtracted.price_tiers.length > 0 && (
+                      <section>
                         <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-3">
-                           <div className="w-1.5 h-1.5 rounded-full bg-blue-600"></div>
-                           体验亮点 (Highlights)
+                          <div className="w-1.5 h-1.5 rounded-full bg-amber-600"></div>
+                          价格档位 (Price Tiers)
                         </h4>
                         <div className="grid grid-cols-1 gap-4">
-                           {currentSku.highlights && currentSku.highlights.length > 0 ? (
-                             currentSku.highlights.map((h, i) => (
-                               <div key={i} className="flex gap-4 p-5 bg-slate-50 rounded-2xl items-center font-black text-slate-800 border border-slate-100/50">
-                                  <svg className="w-5 h-5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
-                                  {h}
-                               </div>
-                             ))
-                           ) : currentSku.rawExtracted ? (
-                             Object.entries(currentSku.rawExtracted).map(([key, value]) => {
-                               if (!value || typeof value === 'object' || key === 'sku_name' || key === 'supplier_name' || key === 'destination_country' || key === 'destination_city') return null;
-                               return (
-                                 <div key={key} className="flex gap-4 p-5 bg-slate-50 rounded-2xl items-start font-black text-slate-800 border border-slate-100/50">
-                                    <svg className="w-5 h-5 text-blue-500 flex-shrink-0 mt-0.5" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M18 10a8 8 0 11-16 0 8 8 0 0116 0zm-7-4a1 1 0 11-2 0 1 1 0 012 0zM9 9a1 1 0 000 2v3a1 1 0 001 1h1a1 1 0 100-2v-3a1 1 0 00-1-1H9z" clipRule="evenodd" /></svg>
-                                    <div className="flex-1">
-                                      <div className="text-[10px] text-slate-400 uppercase tracking-wider mb-1">{key.replace(/_/g, ' ')}</div>
-                                      <div className="text-sm">{Array.isArray(value) ? value.join(', ') : String(value)}</div>
-                                    </div>
-                                 </div>
-                               );
-                             })
-                           ) : (
-                             <div className="text-sm text-slate-400 italic">暂无亮点信息</div>
-                           )}
+                          {currentSku.rawExtracted.price_tiers.map((tier: any, i: number) => (
+                            <div key={i} className="flex justify-between items-center p-5 bg-gradient-to-r from-amber-50 to-orange-50 rounded-2xl border-2 border-amber-200">
+                              <div>
+                                <div className="text-sm font-bold text-slate-600">{tier.dates}</div>
+                              </div>
+                              <div className="text-right">
+                                <div className="text-2xl font-black text-amber-600">¥{tier.price_per_person?.toLocaleString()}</div>
+                                <div className="text-xs text-slate-500">每人</div>
+                              </div>
+                            </div>
+                          ))}
                         </div>
+                      </section>
+                    )}
+
+                     <section>
+                       <h4 className="text-[11px] font-black text-slate-400 uppercase tracking-widest mb-6 flex items-center gap-3">
+                          <div className="w-1.5 h-1.5 rounded-full bg-blue-600"></div>
+                          体验亮点 (Highlights)
+                       </h4>
+                       <div className="grid grid-cols-1 gap-4">
+                          {/* Structured highlights from raw_extracted */}
+                          {currentSku.rawExtracted?.highlights && Array.isArray(currentSku.rawExtracted.highlights) && currentSku.rawExtracted.highlights.length > 0 ? (
+                            currentSku.rawExtracted.highlights.map((h: any, i: number) => (
+                              <div key={i} className="flex gap-4 p-5 bg-gradient-to-r from-blue-50 to-indigo-50 rounded-2xl items-start border-2 border-blue-200">
+                                 <div className="text-3xl flex-shrink-0">{h.icon || '✨'}</div>
+                                 <div className="flex-1">
+                                   <div className="text-sm font-black text-blue-900 mb-1">{h.title}</div>
+                                   <div className="text-sm text-slate-700 leading-relaxed">{h.description}</div>
+                                 </div>
+                              </div>
+                            ))
+                          ) : currentSku.highlights && currentSku.highlights.length > 0 ? (
+                            currentSku.highlights.map((h, i) => (
+                              <div key={i} className="flex gap-4 p-5 bg-slate-50 rounded-2xl items-center font-black text-slate-800 border border-slate-100/50">
+                                 <svg className="w-5 h-5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
+                                 {h}
+                              </div>
+                            ))
+                          ) : currentSku.rawExtracted?.experience_highlights && Array.isArray(currentSku.rawExtracted.experience_highlights) ? (
+                            currentSku.rawExtracted.experience_highlights.map((h: string, i: number) => (
+                              <div key={i} className="flex gap-4 p-5 bg-slate-50 rounded-2xl items-center font-black text-slate-800 border border-slate-100/50">
+                                 <svg className="w-5 h-5 text-emerald-500" fill="currentColor" viewBox="0 0 20 20"><path fillRule="evenodd" d="M10 18a8 8 0 100-16 8 8 0 000 16zm3.707-9.293a1 1 0 00-1.414-1.414L9 10.586 7.707 9.293a1 1 0 00-1.414 1.414l2 2a1 1 0 001.414 0l4-4z" clipRule="evenodd" /></svg>
+                                 {h}
+                              </div>
+                            ))
+                          ) : (
+                            <div className="text-sm text-slate-400 italic">暂无亮点信息</div>
+                          )}
+                       </div>
                      </section>
 
                      <div className="grid grid-cols-2 gap-8">

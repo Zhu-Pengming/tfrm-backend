@@ -18,9 +18,58 @@ const ProductEditModal: React.FC<ProductEditModalProps> = ({ sku, onSave, onClos
   // 从rawExtracted或rawAttrs中提取酒店特有信息
   const hotelInfo = sku.rawExtracted || sku.rawAttrs || {};
   
+  // 将raw_extracted转换为可读文本格式
+  const formatRawExtracted = (data: any): string => {
+    if (!data || typeof data !== 'object') return '';
+    
+    const lines: string[] = [];
+    
+    // 递归格式化对象
+    const formatObject = (obj: any, indent: string = ''): void => {
+      for (const [key, value] of Object.entries(obj)) {
+        if (value === null || value === undefined) continue;
+        
+        if (Array.isArray(value)) {
+          if (value.length > 0) {
+            lines.push(`${indent}${key}:`);
+            value.forEach((item, idx) => {
+              if (typeof item === 'object') {
+                lines.push(`${indent}  ${idx + 1}.`);
+                formatObject(item, indent + '    ');
+              } else {
+                lines.push(`${indent}  - ${item}`);
+              }
+            });
+          }
+        } else if (typeof value === 'object') {
+          lines.push(`${indent}${key}:`);
+          formatObject(value, indent + '  ');
+        } else {
+          lines.push(`${indent}${key}: ${value}`);
+        }
+      }
+    };
+    
+    formatObject(data);
+    return lines.join('\n');
+  };
+  
+  // 构建描述：如果有description就用，否则或追加raw_extracted的文本版本
+  const buildDescription = (): string => {
+    const rawText = sku.rawExtracted ? formatRawExtracted(sku.rawExtracted) : '';
+    const existingDesc = sku.description || hotelInfo.description || '';
+    
+    if (!existingDesc && rawText) {
+      return rawText;
+    } else if (existingDesc && rawText) {
+      return `${existingDesc}\n\n--- 提取数据 ---\n${rawText}`;
+    }
+    return existingDesc;
+  };
+  
   const [formData, setFormData] = useState({
     name: sku.name,
-    description: sku.description || hotelInfo.description || '',
+    description: buildDescription(),
     location: sku.location,
     provider: sku.provider,
     price: sku.price,
