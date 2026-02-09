@@ -294,6 +294,16 @@ def validate_attrs(sku_type: str, attrs: Dict[str, Any]) -> Dict[str, Any]:
         if isinstance(attrs['languages'], str):
             attrs['languages'] = [attrs['languages']]
     
+    # Pre-process: handle non-numeric duration_hours values
+    if sku_type == 'activity' and 'duration_hours' in attrs:
+        duration_value = attrs['duration_hours']
+        if isinstance(duration_value, str):
+            # Try to convert to number, if fails (e.g., "不限时"), set to None
+            try:
+                attrs['duration_hours'] = Decimal(duration_value)
+            except (ValueError, TypeError):
+                attrs['duration_hours'] = None
+    
     validated = validator_class(**attrs)
     result = validated.model_dump(exclude_none=True)
     
