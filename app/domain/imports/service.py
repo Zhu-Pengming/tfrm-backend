@@ -312,26 +312,41 @@ class ImportService:
                     filename = "document.docx"
                 elif file_mime_type.startswith('image/'):
                     ext = file_mime_type.split('/')[-1]
+                    # Handle common image extensions
+                    if ext == 'jpeg':
+                        ext = 'jpg'
                     filename = f"image.{ext}"
                 else:
                     filename = "file"
                 
                 kimi_client = KimiClient()
                 
-                # Upload file to Kimi
+                logger.info(f"Uploading file to Kimi: {filename}, size: {len(file_data)} bytes, mime: {file_mime_type}")
+                
+                # Upload file to Kimi (works for PDF, DOCX, and images)
                 file_id = await kimi_client.upload_file(file_data, filename)
                 
                 # Verify file upload (optional but recommended)
                 file_info = await kimi_client.get_file(file_id)
                 logger.info(f"Kimi file uploaded: {file_info.get('filename')} (status: {file_info.get('status')})")
                 
-                # Pass file_id to parse_sku_input (Kimi will read the file in chat)
-                llm_client = LLMClient()
-                result = await llm_client.parse_sku_input(
-                    input_text=input_text or "",
-                    images=None,
-                    file_ids=[file_id]
-                )
+                # For images, use vision API; for documents, extract content
+                if file_mime_type.startswith('image/'):
+                    # Use Kimi's vision capabilities with file reference
+                    llm_client = LLMClient()
+                    result = await llm_client.parse_sku_input(
+                        input_text=input_text or "",
+                        images=None,
+                        file_ids=[file_id]
+                    )
+                else:
+                    # For PDF/DOCX, extract content and pass as text
+                    llm_client = LLMClient()
+                    result = await llm_client.parse_sku_input(
+                        input_text=input_text or "",
+                        images=None,
+                        file_ids=[file_id]
+                    )
             else:
                 # Fallback: for other providers or image files, use direct processing
                 docx_text = None

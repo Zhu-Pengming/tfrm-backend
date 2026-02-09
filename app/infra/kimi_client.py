@@ -178,20 +178,36 @@ class KimiClient:
         Args:
             input_text: Text content (from user input, DOCX, or OCR fallback)
             images: List of image dicts with 'data' (bytes) and 'mime_type'
-            file_ids: List of uploaded file IDs - will extract content first
+            file_ids: List of uploaded file IDs - for images use file reference, for docs extract content
         
         Returns:
             Structured extraction result with extracted_fields, confidence, evidence
         """
-        # Extract file contents if file_ids provided
+        # Separate image file_ids from document file_ids
+        # For images: use file reference in chat API
+        # For documents (PDF/DOCX): extract content as text
+        image_file_ids = []
         file_contents = []
+        
         if file_ids:
             for file_id in file_ids:
                 try:
-                    content = await self.get_file_content(file_id)
-                    file_contents.append(content)
+                    # Get file info to determine type
+                    file_info = await self.get_file(file_id)
+                    filename = file_info.get('filename', '').lower()
+                    
+                    # Check if it's an image based on extension
+                    if any(filename.endswith(ext) for ext in ['.jpg', '.jpeg', '.png', '.gif', '.bmp', '.webp']):
+                        # For images, keep file_id for reference in chat
+                        image_file_ids.append(file_id)
+                        print(f"Image file detected: {filename}, will use file reference")
+                    else:
+                        # For documents, extract content
+                        content = await self.get_file_content(file_id)
+                        file_contents.append(content)
+                        print(f"Document file detected: {filename}, extracted {len(content)} chars")
                 except Exception as e:
-                    print(f"Warning: Failed to extract content from file {file_id}: {str(e)}")
+                    print(f"Warning: Failed to process file {file_id}: {str(e)}")
                     continue
         
         # Merge file contents with input text
@@ -201,7 +217,7 @@ class KimiClient:
         
         prompt = self._build_extraction_prompt(combined_text)
         
-        # Build multimodal messages (now without file_ids, using extracted content)
+        # Build multimodal messages with file references for images
         messages = [
             {"role": "system", "content": """你是 Kimi，一个专业的旅游资源数据提取助手。
 
@@ -226,7 +242,7 @@ class KimiClient:
 - 图片是旅游海报，却识别为hotel类型 ← 类型错误！
 
 违反以上规则将被视为严重错误，必须重新提取。"""},
-            {"role": "user", "content": self._build_content_parts(prompt, images, None)}
+            {"role": "user", "content": self._build_content_parts(prompt, images, image_file_ids)}
         ]
         
         print(f"\n{'='*80}")
@@ -234,6 +250,7 @@ class KimiClient:
         print(f"  - Model: {self.model}")
         print(f"  - Combined text length: {len(combined_text)}")
         print(f"  - Images: {len(images) if images else 0}")
+        print(f"  - Image file IDs: {len(image_file_ids)}")
         print(f"  - File contents extracted: {len(file_contents)}")
         print(f"{'='*80}\n")
         
@@ -299,10 +316,18 @@ class KimiClient:
         """
         parts = []
         
-        # Note: file_ids are now handled by extracting content first in parse_sku_input
-        # So this method no longer needs to handle file_ids
+        # Add file references for uploaded images (preferred method - avoids timeout)
+        if file_ids:
+            for file_id in file_ids:
+                parts.append({
+                    "type": "file",
+                    "file_url": {
+                        "url": f"file://{file_id}"
+                    }
+                })
+                print(f"  - Added file reference: {file_id}")
         
-        # Add images (so model sees visual context before text instructions)
+        # Add images as base64 (fallback for non-Kimi providers or direct image data)
         if images:
             for img_data in images:
                 try:
